@@ -3,8 +3,22 @@ import { getImageUnderstandingProvider } from "../../../lib/models/provider-regi
 import { uploadRequestSchema } from "../../../lib/schemas/upload";
 
 export async function POST(request: Request) {
-  const body = await request.json().catch(() => null);
-  const parsedBody = uploadRequestSchema.safeParse(body ?? {});
+  const body = await request.json().catch(() => undefined);
+
+  if (body === undefined) {
+    return Response.json(
+      {
+        error: "Invalid upload request.",
+        issues: {
+          formErrors: ["Malformed JSON body."],
+          fieldErrors: {},
+        },
+      },
+      { status: 400 },
+    );
+  }
+
+  const parsedBody = uploadRequestSchema.safeParse(body);
 
   if (!parsedBody.success) {
     return Response.json(
