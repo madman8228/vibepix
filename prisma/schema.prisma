@@ -52,6 +52,7 @@ model Upload {
 model CatalogItem {
   id              String      @id @default(cuid())
   kind            CatalogKind
+  /// Stable domain key used by recommendations, admin config, and seed data.
   key             String      @unique
   title           String
   description     String?
@@ -69,20 +70,23 @@ model CatalogItem {
 }
 
 model Recommendation {
-  id                String   @id @default(cuid())
-  uploadId          String
-  tierId            String
-  styleIds          String
-  modeIds           String
-  gameplayIds       String
-  selectedStyleId   String?
-  selectedModeId    String?
-  selectedGameplayId String?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  upload            Upload   @relation(fields: [uploadId], references: [id], onDelete: Cascade)
-  tier              Tier     @relation(fields: [tierId], references: [id], onDelete: Restrict)
-  jobs              Job[]
+  id                 String   @id @default(cuid())
+  uploadId           String
+  tierId             String
+  /// Serialized JSON array of recommended CatalogItem keys for styles.
+  styleKeys          String
+  /// Serialized JSON array of recommended CatalogItem keys for modes.
+  modeKeys           String
+  /// Serialized JSON array of recommended CatalogItem keys for gameplay options.
+  gameplayKeys       String
+  selectedStyleKey   String?
+  selectedModeKey    String?
+  selectedGameplayKey String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  upload             Upload   @relation(fields: [uploadId], references: [id], onDelete: Cascade)
+  tier               Tier     @relation(fields: [tierId], references: [id], onDelete: Restrict)
+  jobs               Job[]
 
   @@index([uploadId])
   @@index([tierId])

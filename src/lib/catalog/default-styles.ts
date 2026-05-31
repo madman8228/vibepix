@@ -2,7 +2,7 @@ import type { RecommendationGroup } from "../types";
 
 export const defaultStyles: RecommendationGroup[] = [
   {
-    id: "storybook-pastel",
+    key: "storybook-pastel",
     title: "Storybook Pastel",
     description: "Soft watercolor styling for calm portrait-led scenes.",
     reason: "Pairs well with gentle moods and portrait-heavy uploads.",
@@ -11,7 +11,7 @@ export const defaultStyles: RecommendationGroup[] = [
     sortOrder: 1,
   },
   {
-    id: "campus-anime",
+    key: "campus-anime",
     title: "Campus Anime",
     description: "Bright character art with youthful classroom energy.",
     reason: "Good fit for student-coded uploads with expressive framing.",
@@ -20,7 +20,7 @@ export const defaultStyles: RecommendationGroup[] = [
     sortOrder: 2,
   },
   {
-    id: "cinematic-ink",
+    key: "cinematic-ink",
     title: "Cinematic Ink",
     description: "Sharper line work for dramatic hero shots and contrast.",
     reason: "Reserved for higher tiers with more stylized story treatment.",

@@ -3,7 +3,7 @@ export const tierKeys = ["free", "plus"] as const;
 export type TierKey = (typeof tierKeys)[number];
 
 export type RecommendationGroup = {
-  id: string;
+  key: string;
   title: string;
   description: string;
   reason: string;
