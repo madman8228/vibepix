@@ -1,15 +1,29 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+} from "vitest";
 
 import { db } from "../../../lib/db";
-import { POST } from "./route";
+import { PATCH, POST } from "./route";
 
 const uploadId = "test-session";
 const missingSourceUploadId = "test-session-missing-source";
 const tierKey = "free";
+const updatedSelection = {
+  selectedStyleKey: "campus-anime",
+  selectedModeKey: "day-in-the-life",
+  selectedGameplayKey: "study-buddy-quest",
+};
+
+let tierId: string;
 
 describe("POST /api/recommend", () => {
   beforeAll(async () => {
-    await db.tier.upsert({
+    const tier = await db.tier.upsert({
       where: { key: tierKey },
       update: {
         name: "Free",
@@ -23,6 +37,7 @@ describe("POST /api/recommend", () => {
         monthlyQuota: 5,
       },
     });
+    tierId = tier.id;
 
     await db.upload.upsert({
       where: { id: uploadId },
@@ -50,6 +65,12 @@ describe("POST /api/recommend", () => {
         id: missingSourceUploadId,
         sourceUrl: "",
       },
+    });
+  });
+
+  beforeEach(async () => {
+    await db.recommendation.deleteMany({
+      where: { uploadId },
     });
   });
 
@@ -81,6 +102,7 @@ describe("POST /api/recommend", () => {
     expect(response.status).toBe(200);
 
     await expect(response.json()).resolves.toMatchObject({
+      recommendationId: expect.any(String),
       uploadSessionId: uploadId,
       analysis: {
         summary: "Warm portrait with a calm, approachable feeling.",
@@ -91,7 +113,94 @@ describe("POST /api/recommend", () => {
         modes: expect.any(Array),
         gameplay: expect.any(Array),
       },
+      selectedStyleKey: "storybook-pastel",
+      selectedModeKey: "single-scene",
+      selectedGameplayKey: "slice-of-life",
     });
+  });
+
+  it("reuses the same recommendation row across repeated loads", async () => {
+    const firstResponse = await POST(
+      new Request("http://localhost/api/recommend", {
+        method: "POST",
+        body: JSON.stringify({ uploadSessionId: uploadId, tierKey }),
+        headers: {
+          "content-type": "application/json",
+        },
+      }),
+    );
+
+    const secondResponse = await POST(
+      new Request("http://localhost/api/recommend", {
+        method: "POST",
+        body: JSON.stringify({ uploadSessionId: uploadId, tierKey }),
+        headers: {
+          "content-type": "application/json",
+        },
+      }),
+    );
+
+    expect(firstResponse.status).toBe(200);
+    expect(secondResponse.status).toBe(200);
+
+    const firstJson = await firstResponse.json();
+    const secondJson = await secondResponse.json();
+
+    expect(secondJson.recommendationId).toBe(firstJson.recommendationId);
+
+    await expect(
+      db.recommendation.count({
+        where: {
+          uploadId,
+          tierId,
+        },
+      }),
+    ).resolves.toBe(1);
+  });
+
+  it("persists selected keys and returns them on later loads", async () => {
+    const initialResponse = await POST(
+      new Request("http://localhost/api/recommend", {
+        method: "POST",
+        body: JSON.stringify({ uploadSessionId: uploadId, tierKey }),
+        headers: {
+          "content-type": "application/json",
+        },
+      }),
+    );
+
+    expect(initialResponse.status).toBe(200);
+
+    const initialJson = await initialResponse.json();
+
+    const updateResponse = await PATCH(
+      new Request("http://localhost/api/recommend", {
+        method: "PATCH",
+        body: JSON.stringify({
+          recommendationId: initialJson.recommendationId,
+          ...updatedSelection,
+        }),
+        headers: {
+          "content-type": "application/json",
+        },
+      }),
+    );
+
+    expect(updateResponse.status).toBe(200);
+    await expect(updateResponse.json()).resolves.toMatchObject(updatedSelection);
+
+    const reloadResponse = await POST(
+      new Request("http://localhost/api/recommend", {
+        method: "POST",
+        body: JSON.stringify({ uploadSessionId: uploadId, tierKey }),
+        headers: {
+          "content-type": "application/json",
+        },
+      }),
+    );
+
+    expect(reloadResponse.status).toBe(200);
+    await expect(reloadResponse.json()).resolves.toMatchObject(updatedSelection);
   });
 
   it("rejects legacy upload sessions that do not have a usable sourceUrl", async () => {

@@ -18,6 +18,12 @@ export type RecommendationInput = {
   tierKey: TierKey;
 };
 
+export type RecommendationSelectionState = {
+  selectedStyleKey: string | null;
+  selectedModeKey: string | null;
+  selectedGameplayKey: string | null;
+};
+
 export type RecommendationResult = {
   styles: RecommendationGroup[];
   modes: RecommendationGroup[];

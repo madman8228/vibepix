@@ -1,17 +1,27 @@
+import type { Recommendation } from "@prisma/client";
+
 import { db } from "../../../lib/db";
 import { getImageUnderstandingProvider } from "../../../lib/models/provider-registry";
 import type { AvatarAnalysis } from "../../../lib/models/provider-types";
 import { buildRecommendationsFromAnalysis } from "../../../lib/recommendation/engine";
-import { recommendRequestSchema } from "../../../lib/schemas/recommend";
+import {
+  recommendRequestSchema,
+  recommendSelectionUpdateSchema,
+} from "../../../lib/schemas/recommend";
+import type {
+  RecommendationGroup,
+  RecommendationResult,
+  RecommendationSelectionState,
+} from "../../../lib/types";
 
-function parseStoredTags(value: string | null): string[] | null {
+function parseStoredStringArray(value: string | null): string[] | null {
   if (!value) {
     return null;
   }
 
   try {
     const parsed = JSON.parse(value);
-    return Array.isArray(parsed) && parsed.every((tag) => typeof tag === "string")
+    return Array.isArray(parsed) && parsed.every((item) => typeof item === "string")
       ? parsed
       : null;
   } catch {
@@ -27,6 +37,65 @@ function hasUsableSourceUrl(
   return typeof upload.sourceUrl === "string" && upload.sourceUrl.trim().length > 0;
 }
 
+function selectKey(
+  items: RecommendationGroup[],
+  selectedKey: string | null,
+): string | null {
+  if (selectedKey && items.some((item) => item.key === selectedKey)) {
+    return selectedKey;
+  }
+
+  return items[0]?.key ?? null;
+}
+
+function resolveSelectionState(
+  recommendation: Pick<
+    Recommendation,
+    "selectedStyleKey" | "selectedModeKey" | "selectedGameplayKey"
+  > | null,
+  recommendations: RecommendationResult,
+): RecommendationSelectionState {
+  return {
+    selectedStyleKey: selectKey(
+      recommendations.styles,
+      recommendation?.selectedStyleKey ?? null,
+    ),
+    selectedModeKey: selectKey(
+      recommendations.modes,
+      recommendation?.selectedModeKey ?? null,
+    ),
+    selectedGameplayKey: selectKey(
+      recommendations.gameplay,
+      recommendation?.selectedGameplayKey ?? null,
+    ),
+  };
+}
+
+function isSelectionAllowed(
+  selection: RecommendationSelectionState,
+  recommendation: Pick<
+    Recommendation,
+    "styleKeys" | "modeKeys" | "gameplayKeys"
+  >,
+): boolean {
+  const styleKeys = parseStoredStringArray(recommendation.styleKeys);
+  const modeKeys = parseStoredStringArray(recommendation.modeKeys);
+  const gameplayKeys = parseStoredStringArray(recommendation.gameplayKeys);
+
+  if (!styleKeys || !modeKeys || !gameplayKeys) {
+    return false;
+  }
+
+  return (
+    (selection.selectedStyleKey === null ||
+      styleKeys.includes(selection.selectedStyleKey)) &&
+    (selection.selectedModeKey === null ||
+      modeKeys.includes(selection.selectedModeKey)) &&
+    (selection.selectedGameplayKey === null ||
+      gameplayKeys.includes(selection.selectedGameplayKey))
+  );
+}
+
 async function resolveAnalysis(upload: {
   id: string;
   fileName: string | null;
@@ -35,7 +104,7 @@ async function resolveAnalysis(upload: {
   analysisSummary: string | null;
   vibeTags: string | null;
 }): Promise<AvatarAnalysis> {
-  const storedTags = parseStoredTags(upload.vibeTags);
+  const storedTags = parseStoredStringArray(upload.vibeTags);
 
   if (upload.analysisSummary && storedTags) {
     return {
@@ -109,21 +178,118 @@ export async function POST(request: Request) {
     tierKey: parsedBody.data.tierKey,
   });
 
-  await db.recommendation.create({
-    data: {
+  const existingRecommendation = await db.recommendation.findFirst({
+    where: {
       uploadId: upload.id,
       tierId: tier.id,
-      styleKeys: JSON.stringify(recommendations.styles.map((item) => item.key)),
-      modeKeys: JSON.stringify(recommendations.modes.map((item) => item.key)),
-      gameplayKeys: JSON.stringify(
-        recommendations.gameplay.map((item) => item.key),
-      ),
+    },
+    orderBy: {
+      createdAt: "asc",
+    },
+  });
+
+  const selection = resolveSelectionState(
+    existingRecommendation,
+    recommendations,
+  );
+
+  const storedRecommendation = existingRecommendation
+    ? await db.recommendation.update({
+        where: { id: existingRecommendation.id },
+        data: {
+          styleKeys: JSON.stringify(
+            recommendations.styles.map((item) => item.key),
+          ),
+          modeKeys: JSON.stringify(recommendations.modes.map((item) => item.key)),
+          gameplayKeys: JSON.stringify(
+            recommendations.gameplay.map((item) => item.key),
+          ),
+          ...selection,
+        },
+      })
+    : await db.recommendation.create({
+        data: {
+          uploadId: upload.id,
+          tierId: tier.id,
+          styleKeys: JSON.stringify(
+            recommendations.styles.map((item) => item.key),
+          ),
+          modeKeys: JSON.stringify(recommendations.modes.map((item) => item.key)),
+          gameplayKeys: JSON.stringify(
+            recommendations.gameplay.map((item) => item.key),
+          ),
+          ...selection,
+        },
+      });
+
+  return Response.json({
+    recommendationId: storedRecommendation.id,
+    uploadSessionId: upload.id,
+    analysis,
+    recommendations,
+    ...selection,
+  });
+}
+
+export async function PATCH(request: Request) {
+  const body = await request.json().catch(() => null);
+  const parsedBody = recommendSelectionUpdateSchema.safeParse(body);
+
+  if (!parsedBody.success) {
+    return Response.json(
+      {
+        error: "Invalid recommendation selection update.",
+        issues: parsedBody.error.flatten(),
+      },
+      { status: 400 },
+    );
+  }
+
+  const recommendation = await db.recommendation.findUnique({
+    where: { id: parsedBody.data.recommendationId },
+    select: {
+      id: true,
+      styleKeys: true,
+      modeKeys: true,
+      gameplayKeys: true,
+    },
+  });
+
+  if (!recommendation) {
+    return Response.json(
+      { error: "Recommendation not found." },
+      { status: 404 },
+    );
+  }
+
+  const selection: RecommendationSelectionState = {
+    selectedStyleKey: parsedBody.data.selectedStyleKey,
+    selectedModeKey: parsedBody.data.selectedModeKey,
+    selectedGameplayKey: parsedBody.data.selectedGameplayKey,
+  };
+
+  if (!isSelectionAllowed(selection, recommendation)) {
+    return Response.json(
+      { error: "Selection is not valid for this recommendation." },
+      { status: 409 },
+    );
+  }
+
+  const updatedRecommendation = await db.recommendation.update({
+    where: { id: recommendation.id },
+    data: selection,
+    select: {
+      id: true,
+      selectedStyleKey: true,
+      selectedModeKey: true,
+      selectedGameplayKey: true,
     },
   });
 
   return Response.json({
-    uploadSessionId: upload.id,
-    analysis,
-    recommendations,
+    recommendationId: updatedRecommendation.id,
+    selectedStyleKey: updatedRecommendation.selectedStyleKey,
+    selectedModeKey: updatedRecommendation.selectedModeKey,
+    selectedGameplayKey: updatedRecommendation.selectedGameplayKey,
   });
 }

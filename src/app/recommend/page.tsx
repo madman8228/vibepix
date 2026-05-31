@@ -6,13 +6,27 @@ import { useSearchParams } from "next/navigation";
 
 import { AnalysisSummary } from "../../components/recommend/analysis-summary";
 import { RecommendationStrip } from "../../components/recommend/recommendation-strip";
-import { getRecommendations, type RecommendationResponse } from "../../lib/api";
-import type { TierKey } from "../../lib/types";
+import {
+  getRecommendations,
+  updateRecommendationSelection,
+  type RecommendationResponse,
+} from "../../lib/api";
+import type { RecommendationSelectionState, TierKey } from "../../lib/types";
 
 type RecommendationPageState = "loading" | "ready" | "error";
 
 function normalizeTierKey(value: string | null): TierKey {
   return value === "plus" ? "plus" : "free";
+}
+
+function buildSelectionState(
+  payload: RecommendationResponse,
+): RecommendationSelectionState {
+  return {
+    selectedStyleKey: payload.selectedStyleKey,
+    selectedModeKey: payload.selectedModeKey,
+    selectedGameplayKey: payload.selectedGameplayKey,
+  };
 }
 
 function RecommendationPageContent() {
@@ -28,6 +42,14 @@ function RecommendationPageContent() {
   const [selectedGameplayId, setSelectedGameplayId] = useState<string | null>(
     null,
   );
+  const [isSavingSelection, setIsSavingSelection] = useState(false);
+  const [selectionError, setSelectionError] = useState<string | null>(null);
+
+  function applySelection(selection: RecommendationSelectionState) {
+    setSelectedStyleId(selection.selectedStyleKey);
+    setSelectedModeId(selection.selectedModeKey);
+    setSelectedGameplayId(selection.selectedGameplayKey);
+  }
 
   useEffect(() => {
     let isActive = true;
@@ -42,6 +64,7 @@ function RecommendationPageContent() {
 
     setPageState("loading");
     setErrorMessage(null);
+    setSelectionError(null);
 
     getRecommendations(uploadSessionId, tierKey)
       .then((response) => {
@@ -50,9 +73,7 @@ function RecommendationPageContent() {
         }
 
         setPayload(response);
-        setSelectedStyleId(response.recommendations.styles[0]?.key ?? null);
-        setSelectedModeId(response.recommendations.modes[0]?.key ?? null);
-        setSelectedGameplayId(response.recommendations.gameplay[0]?.key ?? null);
+        applySelection(buildSelectionState(response));
         setPageState("ready");
       })
       .catch((error: unknown) => {
@@ -72,6 +93,44 @@ function RecommendationPageContent() {
       isActive = false;
     };
   }, [tierKey, uploadSessionId]);
+
+  async function persistSelection(partial: Partial<RecommendationSelectionState>) {
+    if (!payload) {
+      return;
+    }
+
+    const previousSelection: RecommendationSelectionState = {
+      selectedStyleKey: selectedStyleId,
+      selectedModeKey: selectedModeId,
+      selectedGameplayKey: selectedGameplayId,
+    };
+    const nextSelection: RecommendationSelectionState = {
+      ...previousSelection,
+      ...partial,
+    };
+
+    applySelection(nextSelection);
+    setSelectionError(null);
+    setIsSavingSelection(true);
+
+    try {
+      const savedSelection = await updateRecommendationSelection(
+        payload.recommendationId,
+        nextSelection,
+      );
+
+      applySelection(savedSelection);
+    } catch (error: unknown) {
+      applySelection(previousSelection);
+      setSelectionError(
+        error instanceof Error
+          ? error.message
+          : "We could not save that pick. Please try again.",
+      );
+    } finally {
+      setIsSavingSelection(false);
+    }
+  }
 
   if (pageState === "error") {
     return (
@@ -156,19 +215,28 @@ function RecommendationPageContent() {
               title="Recommended styles"
               items={payload.recommendations.styles}
               selectedId={selectedStyleId}
-              onSelect={setSelectedStyleId}
+              onSelect={(selectedStyleKey) =>
+                void persistSelection({ selectedStyleKey })
+              }
+              disabled={isSavingSelection}
             />
             <RecommendationStrip
               title="Recommended modes"
               items={payload.recommendations.modes}
               selectedId={selectedModeId}
-              onSelect={setSelectedModeId}
+              onSelect={(selectedModeKey) =>
+                void persistSelection({ selectedModeKey })
+              }
+              disabled={isSavingSelection}
             />
             <RecommendationStrip
               title="Recommended gameplay"
               items={payload.recommendations.gameplay}
               selectedId={selectedGameplayId}
-              onSelect={setSelectedGameplayId}
+              onSelect={(selectedGameplayKey) =>
+                void persistSelection({ selectedGameplayKey })
+              }
+              disabled={isSavingSelection}
             />
           </div>
 
@@ -205,6 +273,17 @@ function RecommendationPageContent() {
             <p className="text-sm text-slate-400">
               Generation comes next. This task stops at choosing a recommendation
               set.
+            </p>
+            <p
+              className={`text-sm ${
+                selectionError ? "text-rose-300" : "text-slate-500"
+              }`}
+            >
+              {selectionError
+                ? selectionError
+                : isSavingSelection
+                  ? "Saving your current picks..."
+                  : "Your latest selection is saved with this recommendation set."}
             </p>
             <Link
               href="/"

@@ -5,6 +5,7 @@ type RecommendationStripProps = {
   items: RecommendationGroup[];
   selectedId: string | null;
   onSelect: (id: string) => void;
+  disabled?: boolean;
 };
 
 export function RecommendationStrip({
@@ -12,6 +13,7 @@ export function RecommendationStrip({
   items,
   selectedId,
   onSelect,
+  disabled = false,
 }: RecommendationStripProps) {
   return (
     <section className="rounded-[2rem] border border-white/10 bg-white/5 p-6">
@@ -31,11 +33,14 @@ export function RecommendationStrip({
               key={item.key}
               type="button"
               aria-pressed={isSelected}
+              disabled={disabled}
               onClick={() => onSelect(item.key)}
               className={`rounded-[1.5rem] border p-5 text-left transition ${
                 isSelected
                   ? "border-cyan-300 bg-cyan-300/10 shadow-lg shadow-cyan-950/20"
                   : "border-white/10 bg-slate-950/40 hover:border-cyan-300/40 hover:bg-white/10"
+              } ${
+                disabled ? "cursor-not-allowed opacity-70" : ""
               }`}
             >
               <p className="text-xs font-semibold uppercase tracking-[0.28em] text-cyan-200">

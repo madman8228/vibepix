@@ -4,10 +4,33 @@ test("user uploads an avatar and sees AI recommendations", async ({ page }) => {
   await page.goto("/");
 
   await expect(page.getByLabel("Avatar upload")).toBeVisible();
+  const uploadRequestPromise = page.waitForRequest((request) =>
+    request.url().includes("/api/upload"),
+  );
 
   await page
     .getByLabel("Avatar upload")
     .setInputFiles("tests/fixtures/avatar.jpg");
 
+  const uploadRequest = await uploadRequestPromise;
+  const uploadPayload = uploadRequest.postDataJSON() as {
+    sourceUrl?: string;
+  };
+
+  expect(uploadPayload.sourceUrl).toMatch(/^data:image\/.+;base64,/);
+
   await expect(page.getByText(/recommended styles/i)).toBeVisible();
+
+  const campusAnimeButton = page.getByRole("button", {
+    name: /campus anime/i,
+  });
+  await campusAnimeButton.click();
+  await expect(campusAnimeButton).toHaveAttribute("aria-pressed", "true");
+
+  await page.reload();
+
+  await expect(page.getByText(/recommended styles/i)).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /campus anime/i }),
+  ).toHaveAttribute("aria-pressed", "true");
 });
