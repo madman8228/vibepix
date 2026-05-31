@@ -258,20 +258,44 @@ function hasNonEmptyText(value: string | null | undefined): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
 
+function buildLegacyAltText({
+  title,
+  styleTitle,
+  gameplayTitle,
+}: {
+  title: string | null | undefined;
+  styleTitle: string | null;
+  gameplayTitle: string | null;
+}) {
+  const resolvedTitle = title ?? "Generated panel";
+
+  if (styleTitle && gameplayTitle) {
+    return `${resolvedTitle} from ${styleTitle} with ${gameplayTitle}.`;
+  }
+
+  if (styleTitle) {
+    return `${resolvedTitle} from ${styleTitle}.`;
+  }
+
+  return `${resolvedTitle} from your saved recommendation set.`;
+}
+
 function hasPersistedGenerationResult(job: {
   outputSummary: string | null;
   panelCount: number;
   works: Array<{
+    kind: WorkKind;
+    title: string | null;
     imageUrl: string;
     altText: string;
   }>;
 }) {
+  const panelWorks = job.works.filter((work) => work.kind === WorkKind.PANEL);
+
   return (
     hasNonEmptyText(job.outputSummary) &&
-    job.works.length === job.panelCount &&
-    job.works.every(
-      (work) => hasNonEmptyText(work.imageUrl) && hasNonEmptyText(work.altText),
-    )
+    panelWorks.length === job.panelCount &&
+    panelWorks.every((work) => hasNonEmptyText(work.imageUrl))
   );
 }
 
@@ -286,6 +310,8 @@ async function maybeFinalizeRunningJob(jobId: string) {
       outputSummary: true,
       works: {
         select: {
+          kind: true,
+          title: true,
           imageUrl: true,
           altText: true,
         },
@@ -476,6 +502,7 @@ export async function getGenerationJob(jobId: string): Promise<GenerationJobResp
         },
         select: {
           id: true,
+          kind: true,
           title: true,
           imageUrl: true,
           altText: true,
@@ -516,6 +543,18 @@ export async function getGenerationJob(jobId: string): Promise<GenerationJobResp
     job.status === JobStatus.SUCCEEDED && !persistedResultExists
       ? "FAILED"
       : mapJobStatus(job.status);
+  const selectionTitles = {
+    styleTitle: job.recommendation?.selectedStyleKey
+      ? titleByKey.get(job.recommendation.selectedStyleKey) ?? null
+      : null,
+    modeTitle: job.recommendation?.selectedModeKey
+      ? titleByKey.get(job.recommendation.selectedModeKey) ?? null
+      : null,
+    gameplayTitle: job.recommendation?.selectedGameplayKey
+      ? titleByKey.get(job.recommendation.selectedGameplayKey) ?? null
+      : null,
+  };
+  const panelWorks = job.works.filter((work) => work.kind === WorkKind.PANEL);
 
   return {
     jobId: job.id,
@@ -525,24 +564,20 @@ export async function getGenerationJob(jobId: string): Promise<GenerationJobResp
       status === "SUCCEEDED"
         ? {
             summary: job.outputSummary ?? "Your mock generation is ready.",
-            assets: job.works.map((work) => ({
+            assets: panelWorks.map((work) => ({
               id: work.id,
               title: work.title ?? `Panel ${(work.panelIndex ?? 0) + 1}`,
               imageUrl: work.imageUrl,
-              altText: work.altText,
+              altText:
+                work.altText ||
+                buildLegacyAltText({
+                  title: work.title,
+                  styleTitle: selectionTitles.styleTitle,
+                  gameplayTitle: selectionTitles.gameplayTitle,
+                }),
               panelIndex: work.panelIndex,
             })),
-            selection: {
-              styleTitle: job.recommendation?.selectedStyleKey
-                ? titleByKey.get(job.recommendation.selectedStyleKey) ?? null
-                : null,
-              modeTitle: job.recommendation?.selectedModeKey
-                ? titleByKey.get(job.recommendation.selectedModeKey) ?? null
-                : null,
-              gameplayTitle: job.recommendation?.selectedGameplayKey
-                ? titleByKey.get(job.recommendation.selectedGameplayKey) ?? null
-                : null,
-            },
+            selection: selectionTitles,
           }
         : null,
     errorMessage:
