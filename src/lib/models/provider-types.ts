@@ -4,8 +4,8 @@ export type AvatarAnalysis = {
 };
 
 export type AvatarAnalysisInput = {
+  sourceUrl: string;
   fileName?: string | null;
-  sourceUrl?: string | null;
   mimeType?: string | null;
 };
 

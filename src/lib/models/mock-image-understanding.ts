@@ -13,8 +13,8 @@ function buildDeterministicAnalysis(
   input: AvatarAnalysisInput,
 ): AvatarAnalysis {
   const normalizedSource = [
-    input.fileName?.toLowerCase(),
     input.sourceUrl?.toLowerCase(),
+    input.fileName?.toLowerCase(),
     input.mimeType?.toLowerCase(),
   ]
     .filter(Boolean)

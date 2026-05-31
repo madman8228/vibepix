@@ -4,6 +4,7 @@ import { db } from "../../../lib/db";
 import { POST } from "./route";
 
 const uploadId = "test-session";
+const missingSourceUploadId = "test-session-missing-source";
 const tierKey = "free";
 
 describe("POST /api/recommend", () => {
@@ -26,13 +27,28 @@ describe("POST /api/recommend", () => {
     await db.upload.upsert({
       where: { id: uploadId },
       update: {
+        sourceUrl: "https://example.com/avatar.jpg",
         analysisSummary: "Warm portrait with a calm, approachable feeling.",
         vibeTags: JSON.stringify(["gentle", "portrait", "friendly"]),
       },
       create: {
         id: uploadId,
+        sourceUrl: "https://example.com/avatar.jpg",
         analysisSummary: "Warm portrait with a calm, approachable feeling.",
         vibeTags: JSON.stringify(["gentle", "portrait", "friendly"]),
+      },
+    });
+
+    await db.upload.upsert({
+      where: { id: missingSourceUploadId },
+      update: {
+        sourceUrl: "",
+        analysisSummary: null,
+        vibeTags: null,
+      },
+      create: {
+        id: missingSourceUploadId,
+        sourceUrl: "",
       },
     });
   });
@@ -43,7 +59,11 @@ describe("POST /api/recommend", () => {
     });
 
     await db.upload.deleteMany({
-      where: { id: uploadId },
+      where: {
+        id: {
+          in: [uploadId, missingSourceUploadId],
+        },
+      },
     });
   });
 
@@ -71,6 +91,27 @@ describe("POST /api/recommend", () => {
         modes: expect.any(Array),
         gameplay: expect.any(Array),
       },
+    });
+  });
+
+  it("rejects legacy upload sessions that do not have a usable sourceUrl", async () => {
+    const response = await POST(
+      new Request("http://localhost/api/recommend", {
+        method: "POST",
+        body: JSON.stringify({
+          uploadSessionId: missingSourceUploadId,
+          tierKey,
+        }),
+        headers: {
+          "content-type": "application/json",
+        },
+      }),
+    );
+
+    expect(response.status).toBe(409);
+
+    await expect(response.json()).resolves.toMatchObject({
+      error: "Upload session is missing a usable sourceUrl.",
     });
   });
 });

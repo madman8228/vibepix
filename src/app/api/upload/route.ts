@@ -36,7 +36,7 @@ export async function POST(request: Request) {
   const upload = await db.upload.create({
     data: {
       fileName: parsedBody.data.fileName ?? null,
-      sourceUrl: parsedBody.data.sourceUrl ?? null,
+      sourceUrl: parsedBody.data.sourceUrl,
       mimeType: parsedBody.data.mimeType ?? null,
       analysisSummary: analysis.summary,
       vibeTags: JSON.stringify(analysis.vibeTags),

@@ -19,10 +19,18 @@ function parseStoredTags(value: string | null): string[] | null {
   }
 }
 
+function hasUsableSourceUrl(
+  upload: {
+    sourceUrl: string | null;
+  },
+): upload is { sourceUrl: string } {
+  return typeof upload.sourceUrl === "string" && upload.sourceUrl.trim().length > 0;
+}
+
 async function resolveAnalysis(upload: {
   id: string;
   fileName: string | null;
-  sourceUrl: string | null;
+  sourceUrl: string;
   mimeType: string | null;
   analysisSummary: string | null;
   vibeTags: string | null;
@@ -86,6 +94,13 @@ export async function POST(request: Request) {
 
   if (!tier) {
     return Response.json({ error: "Tier not found." }, { status: 404 });
+  }
+
+  if (!hasUsableSourceUrl(upload)) {
+    return Response.json(
+      { error: "Upload session is missing a usable sourceUrl." },
+      { status: 409 },
+    );
   }
 
   const analysis = await resolveAnalysis(upload);
