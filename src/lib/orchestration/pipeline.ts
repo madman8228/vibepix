@@ -280,22 +280,46 @@ function buildLegacyAltText({
   return `${resolvedTitle} from your saved recommendation set.`;
 }
 
-function hasPersistedGenerationResult(job: {
-  outputSummary: string | null;
-  panelCount: number;
-  works: Array<{
-    kind: WorkKind;
-    title: string | null;
-    imageUrl: string;
+function isCanonicalPanelAssetId(jobId: string, assetId: string) {
+  return assetId.startsWith(`${jobId}_panel_`);
+}
+
+function isLegacyPanelAsset(
+  jobId: string,
+  work: {
+    id: string;
     altText: string;
-  }>;
-}) {
+  },
+) {
+  return (
+    !hasNonEmptyText(work.altText) && !isCanonicalPanelAssetId(jobId, work.id)
+  );
+}
+
+function hasPersistedGenerationResult(
+  jobId: string,
+  job: {
+    outputSummary: string | null;
+    panelCount: number;
+    works: Array<{
+      id: string;
+      kind: WorkKind;
+      title: string | null;
+      imageUrl: string;
+      altText: string;
+    }>;
+  },
+) {
   const panelWorks = job.works.filter((work) => work.kind === WorkKind.PANEL);
 
   return (
     hasNonEmptyText(job.outputSummary) &&
     panelWorks.length === job.panelCount &&
-    panelWorks.every((work) => hasNonEmptyText(work.imageUrl))
+    panelWorks.every(
+      (work) =>
+        hasNonEmptyText(work.imageUrl) &&
+        (hasNonEmptyText(work.altText) || isLegacyPanelAsset(jobId, work)),
+    )
   );
 }
 
@@ -310,6 +334,7 @@ async function maybeFinalizeRunningJob(jobId: string) {
       outputSummary: true,
       works: {
         select: {
+          id: true,
           kind: true,
           title: true,
           imageUrl: true,
@@ -327,7 +352,7 @@ async function maybeFinalizeRunningJob(jobId: string) {
     return;
   }
 
-  const persistedResultExists = hasPersistedGenerationResult(job);
+  const persistedResultExists = hasPersistedGenerationResult(jobId, job);
 
   await db.job.update({
     where: { id: jobId },
@@ -538,7 +563,7 @@ export async function getGenerationJob(jobId: string): Promise<GenerationJobResp
       })
     : [];
   const titleByKey = new Map(selectionItems.map((item) => [item.key, item.title]));
-  const persistedResultExists = hasPersistedGenerationResult(job);
+  const persistedResultExists = hasPersistedGenerationResult(jobId, job);
   const status =
     job.status === JobStatus.SUCCEEDED && !persistedResultExists
       ? "FAILED"
@@ -568,13 +593,13 @@ export async function getGenerationJob(jobId: string): Promise<GenerationJobResp
               id: work.id,
               title: work.title ?? `Panel ${(work.panelIndex ?? 0) + 1}`,
               imageUrl: work.imageUrl,
-              altText:
-                work.altText ||
-                buildLegacyAltText({
-                  title: work.title,
-                  styleTitle: selectionTitles.styleTitle,
-                  gameplayTitle: selectionTitles.gameplayTitle,
-                }),
+              altText: hasNonEmptyText(work.altText)
+                ? work.altText
+                : buildLegacyAltText({
+                    title: work.title,
+                    styleTitle: selectionTitles.styleTitle,
+                    gameplayTitle: selectionTitles.gameplayTitle,
+                  }),
               panelIndex: work.panelIndex,
             })),
             selection: selectionTitles,

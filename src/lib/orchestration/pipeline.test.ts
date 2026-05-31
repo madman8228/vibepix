@@ -289,4 +289,57 @@ describe("prepareGenerationArtifacts", () => {
       },
     });
   });
+
+  it("fails canonical succeeded jobs when a persisted panel altText is blank", async () => {
+    const tier = await db.tier.findUniqueOrThrow({
+      where: { key: tierKey },
+    });
+
+    await db.recommendation.create({
+      data: {
+        id: recommendationId,
+        uploadId,
+        tierId: tier.id,
+        styleKeys: JSON.stringify(defaultStyles.map((item) => item.key)),
+        modeKeys: JSON.stringify(defaultModes.map((item) => item.key)),
+        gameplayKeys: JSON.stringify(defaultGameplay.map((item) => item.key)),
+        selectedStyleKey: "campus-anime",
+        selectedModeKey: "day-in-the-life",
+        selectedGameplayKey: "study-buddy-quest",
+      },
+    });
+
+    const job = await db.job.create({
+      data: {
+        recommendationId,
+        tierId: tier.id,
+        panelCount: 1,
+        status: JobStatus.SUCCEEDED,
+        outputSummary:
+          "Day in the Life scene package for Study Buddy Quest, rendered as a Campus Anime mock set.",
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    await db.work.create({
+      data: {
+        id: `${job.id}_panel_1`,
+        jobId: job.id,
+        kind: WorkKind.PANEL,
+        title: "Panel 1",
+        imageUrl: "data:image/svg+xml;charset=UTF-8,canonical-panel",
+        altText: "",
+        panelIndex: 0,
+      },
+    });
+
+    await expect(getGenerationJob(job.id)).resolves.toMatchObject({
+      jobId: job.id,
+      status: "FAILED",
+      result: null,
+      errorMessage: "Generation output was incomplete. Please try again.",
+    });
+  });
 });
