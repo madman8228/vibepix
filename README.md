@@ -16,14 +16,14 @@ This repository intentionally does not include yet:
 - Product pages or feature routes
 - API endpoints
 - A real application data model or real seed data
-- End-to-end coverage for user flows
+- Project test files or end-to-end coverage for user flows
 
 ## Scripts
 
 - `npm run dev` starts the local development server.
 - `npm run build` creates the production build.
 - `npm run start` runs the production server.
-- `npm run test` runs the bootstrap Vitest smoke test.
+- `npm run test` runs Vitest and exits cleanly when no bootstrap tests exist yet.
 - `npm run test:e2e` runs Playwright and exits cleanly when no E2E specs exist yet.
 - `npm run db:push` validates the Prisma setup and creates the local bootstrap SQLite database file.
 - `npm run db:seed` runs a no-op bootstrap seed script.
