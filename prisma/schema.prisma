@@ -5,3 +5,149 @@ generator client {
 datasource db {
   provider = "sqlite"
 }
+
+enum CatalogKind {
+  STYLE
+  MODE
+  GAMEPLAY
+}
+
+enum JobStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
+enum WorkKind {
+  AVATAR
+  PANEL
+  COVER
+}
+
+model Tier {
+  id             String           @id @default(cuid())
+  key            String           @unique
+  name           String
+  maxPanels      Int
+  monthlyQuota   Int
+  recommendations Recommendation[]
+  jobs           Job[]
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+}
+
+model Upload {
+  id               String           @id @default(cuid())
+  fileName         String?
+  sourceUrl        String?
+  mimeType         String?
+  analysisSummary  String?
+  vibeTags         String?
+  recommendations  Recommendation[]
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+}
+
+model CatalogItem {
+  id              String      @id @default(cuid())
+  kind            CatalogKind
+  key             String      @unique
+  title           String
+  description     String?
+  reason          String?
+  previewImageUrl String?
+  tags            String
+  tierKeys        String
+  sortOrder       Int         @default(0)
+  isActive        Boolean     @default(true)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([kind, sortOrder])
+  @@index([isActive])
+}
+
+model Recommendation {
+  id                String   @id @default(cuid())
+  uploadId          String
+  tierId            String
+  styleIds          String
+  modeIds           String
+  gameplayIds       String
+  selectedStyleId   String?
+  selectedModeId    String?
+  selectedGameplayId String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  upload            Upload   @relation(fields: [uploadId], references: [id], onDelete: Cascade)
+  tier              Tier     @relation(fields: [tierId], references: [id], onDelete: Restrict)
+  jobs              Job[]
+
+  @@index([uploadId])
+  @@index([tierId])
+}
+
+model PromptTemplate {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  name        String
+  stage       String
+  modelFamily String?
+  template    String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  jobs        Job[]
+}
+
+model ModelRoute {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  name      String
+  provider  String
+  model     String
+  purpose   String?
+  config    String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  jobs      Job[]
+}
+
+model Job {
+  id               String          @id @default(cuid())
+  recommendationId String?
+  tierId           String
+  routeId          String?
+  promptTemplateId String?
+  status           JobStatus       @default(PENDING)
+  panelCount       Int             @default(1)
+  outputSummary    String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  recommendation   Recommendation? @relation(fields: [recommendationId], references: [id], onDelete: SetNull)
+  tier             Tier            @relation(fields: [tierId], references: [id], onDelete: Restrict)
+  route            ModelRoute?     @relation(fields: [routeId], references: [id], onDelete: SetNull)
+  promptTemplate   PromptTemplate? @relation(fields: [promptTemplateId], references: [id], onDelete: SetNull)
+  works            Work[]
+
+  @@index([recommendationId])
+  @@index([tierId])
+  @@index([routeId])
+  @@index([promptTemplateId])
+}
+
+model Work {
+  id         String   @id @default(cuid())
+  jobId      String
+  kind       WorkKind @default(PANEL)
+  title      String?
+  imageUrl   String
+  panelIndex Int?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  job        Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId])
+}
