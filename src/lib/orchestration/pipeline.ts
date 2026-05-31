@@ -24,6 +24,8 @@ import {
 } from "./prompt-compiler";
 
 const MOCK_JOB_READY_DELAY_MS = 1200;
+const INCOMPLETE_GENERATION_OUTPUT_MESSAGE =
+  "Generation output was incomplete. Please try again.";
 
 type SelectionKeys = {
   selectedStyleKey: string;
@@ -252,13 +254,42 @@ function buildProgress(
   };
 }
 
-async function maybeMarkJobSucceeded(jobId: string) {
+function hasNonEmptyText(value: string | null | undefined): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function hasPersistedGenerationResult(job: {
+  outputSummary: string | null;
+  panelCount: number;
+  works: Array<{
+    imageUrl: string;
+    altText: string;
+  }>;
+}) {
+  return (
+    hasNonEmptyText(job.outputSummary) &&
+    job.works.length === job.panelCount &&
+    job.works.every(
+      (work) => hasNonEmptyText(work.imageUrl) && hasNonEmptyText(work.altText),
+    )
+  );
+}
+
+async function maybeFinalizeRunningJob(jobId: string) {
   const job = await db.job.findUnique({
     where: { id: jobId },
     select: {
       id: true,
       status: true,
       createdAt: true,
+      panelCount: true,
+      outputSummary: true,
+      works: {
+        select: {
+          imageUrl: true,
+          altText: true,
+        },
+      },
     },
   });
 
@@ -270,10 +301,15 @@ async function maybeMarkJobSucceeded(jobId: string) {
     return;
   }
 
+  const persistedResultExists = hasPersistedGenerationResult(job);
+
   await db.job.update({
     where: { id: jobId },
     data: {
-      status: JobStatus.SUCCEEDED,
+      status: persistedResultExists ? JobStatus.SUCCEEDED : JobStatus.FAILED,
+      outputSummary: persistedResultExists
+        ? job.outputSummary
+        : INCOMPLETE_GENERATION_OUTPUT_MESSAGE,
     },
   });
 }
@@ -404,9 +440,11 @@ export async function createGenerationJob(
       outputSummary: generated.summary,
       works: {
         create: generated.assets.map((asset) => ({
+          id: asset.id,
           kind: WorkKind.PANEL,
           title: asset.title,
           imageUrl: asset.imageUrl,
+          altText: asset.altText,
           panelIndex: asset.panelIndex,
         })),
       },
@@ -421,13 +459,14 @@ export async function createGenerationJob(
 }
 
 export async function getGenerationJob(jobId: string): Promise<GenerationJobResponse | null> {
-  await maybeMarkJobSucceeded(jobId);
+  await maybeFinalizeRunningJob(jobId);
 
   const job = await db.job.findUnique({
     where: { id: jobId },
     select: {
       id: true,
       status: true,
+      panelCount: true,
       outputSummary: true,
       createdAt: true,
       updatedAt: true,
@@ -439,6 +478,7 @@ export async function getGenerationJob(jobId: string): Promise<GenerationJobResp
           id: true,
           title: true,
           imageUrl: true,
+          altText: true,
           panelIndex: true,
         },
       },
@@ -471,7 +511,11 @@ export async function getGenerationJob(jobId: string): Promise<GenerationJobResp
       })
     : [];
   const titleByKey = new Map(selectionItems.map((item) => [item.key, item.title]));
-  const status = mapJobStatus(job.status);
+  const persistedResultExists = hasPersistedGenerationResult(job);
+  const status =
+    job.status === JobStatus.SUCCEEDED && !persistedResultExists
+      ? "FAILED"
+      : mapJobStatus(job.status);
 
   return {
     jobId: job.id,
@@ -485,7 +529,7 @@ export async function getGenerationJob(jobId: string): Promise<GenerationJobResp
               id: work.id,
               title: work.title ?? `Panel ${(work.panelIndex ?? 0) + 1}`,
               imageUrl: work.imageUrl,
-              altText: `${work.title ?? "Generated panel"} from your saved recommendation set.`,
+              altText: work.altText,
               panelIndex: work.panelIndex,
             })),
             selection: {
@@ -501,7 +545,12 @@ export async function getGenerationJob(jobId: string): Promise<GenerationJobResp
             },
           }
         : null,
-    errorMessage: status === "FAILED" ? job.outputSummary ?? "Generation failed." : null,
+    errorMessage:
+      status === "FAILED"
+        ? job.status === JobStatus.FAILED
+          ? job.outputSummary ?? "Generation failed."
+          : INCOMPLETE_GENERATION_OUTPUT_MESSAGE
+        : null,
     createdAt: job.createdAt.toISOString(),
     updatedAt: job.updatedAt.toISOString(),
   };

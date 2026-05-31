@@ -149,6 +149,7 @@ model Work {
   kind       WorkKind @default(PANEL)
   title      String?
   imageUrl   String
+  altText    String   @default("")
   panelIndex Int?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt

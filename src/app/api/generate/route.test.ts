@@ -13,6 +13,10 @@ import { db } from "../../../lib/db";
 import { defaultGameplay } from "../../../lib/catalog/default-gameplay";
 import { defaultModes } from "../../../lib/catalog/default-modes";
 import { defaultStyles } from "../../../lib/catalog/default-styles";
+import {
+  getGenerationJob,
+  prepareGenerationArtifacts,
+} from "../../../lib/orchestration/pipeline";
 import { POST } from "./route";
 
 const uploadId = "generate-upload-session";
@@ -223,16 +227,66 @@ describe("POST /api/generate", () => {
           panelIndex: "asc",
         },
         select: {
+          id: true,
           title: true,
           imageUrl: true,
         },
       }),
     ).resolves.toEqual([
       {
+        id: `${payload.jobId as string}_panel_1`,
         title: "Panel 1",
         imageUrl: expect.stringMatching(/^data:image\/svg\+xml/),
       },
     ]);
+  });
+
+  it("returns the canonical generated result contract once the running job is ready", async () => {
+    const response = await POST(
+      new Request("http://localhost/api/generate", {
+        method: "POST",
+        body: JSON.stringify({
+          recommendationId,
+          ...selectedKeys,
+        }),
+        headers: {
+          "content-type": "application/json",
+        },
+      }),
+    );
+
+    expect(response.status).toBe(202);
+
+    const payload = await response.json();
+    const jobId = payload.jobId as string;
+
+    await db.job.update({
+      where: { id: jobId },
+      data: {
+        createdAt: new Date(Date.now() - 5_000),
+      },
+    });
+
+    const expected = prepareGenerationArtifacts({
+      jobId,
+      analysis: {
+        summary: "Warm portrait with a calm, approachable feeling.",
+        vibeTags: ["gentle", "portrait", "friendly"],
+      },
+      selection: {
+        style: defaultStyles[1],
+        mode: defaultModes[1],
+        gameplay: defaultGameplay[1],
+      },
+      panelCount: 1,
+    }).result;
+
+    await expect(getGenerationJob(jobId)).resolves.toMatchObject({
+      jobId,
+      status: "SUCCEEDED",
+      result: expected,
+      errorMessage: null,
+    });
   });
 
   it("rejects generation requests that pick keys outside the recommendation set", async () => {
