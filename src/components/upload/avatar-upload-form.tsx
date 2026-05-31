@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { uploadAvatar } from "../../lib/api";
@@ -17,16 +17,25 @@ export function AvatarUploadForm() {
   const [uploadState, setUploadState] = useState<UploadState>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
+  const uploadInFlightRef = useRef(false);
 
   async function handleFileChange(
     event: React.ChangeEvent<HTMLInputElement>,
   ) {
-    const file = event.target.files?.[0];
+    const input = event.currentTarget;
+
+    if (uploadInFlightRef.current) {
+      input.value = "";
+      return;
+    }
+
+    const file = input.files?.[0];
 
     if (!file) {
       return;
     }
 
+    uploadInFlightRef.current = true;
     setFileName(file.name);
     setErrorMessage(null);
     setUploadState("uploading");
@@ -41,15 +50,19 @@ export function AvatarUploadForm() {
       );
     } catch (error: unknown) {
       setUploadState("error");
+      setFileName(null);
       setErrorMessage(
         error instanceof Error
           ? error.message
           : "We could not process this upload.",
       );
-      event.target.value = "";
+      input.value = "";
+    } finally {
+      uploadInFlightRef.current = false;
     }
   }
 
+  const isUploading = uploadState === "uploading";
   const helperText =
     uploadState === "error"
       ? errorMessage ?? "We could not process this upload."
@@ -84,6 +97,7 @@ export function AvatarUploadForm() {
             type="file"
             accept="image/*"
             className="mt-3 block w-full cursor-pointer rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-700 file:mr-4 file:rounded-full file:border-0 file:bg-slate-950 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white"
+            disabled={isUploading}
             onChange={handleFileChange}
           />
           <p
