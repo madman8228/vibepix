@@ -18,7 +18,7 @@ export default defineConfig({
   ],
   webServer: {
     command:
-      "npm run db:push && npm run db:seed && npm run dev -- --hostname 127.0.0.1 --port 4100",
+      "npm run db:push && npm run db:seed && npx next dev --hostname 127.0.0.1 --port 4100",
     port: 4100,
     reuseExistingServer: false,
     timeout: 120000,

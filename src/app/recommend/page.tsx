@@ -3,11 +3,13 @@
 import Link from "next/link";
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 import { AnalysisSummary } from "../../components/recommend/analysis-summary";
 import { RecommendationStrip } from "../../components/recommend/recommendation-strip";
 import {
   getRecommendations,
+  startGeneration,
   updateRecommendationSelection,
   type RecommendationResponse,
 } from "../../lib/api";
@@ -30,6 +32,7 @@ function buildSelectionState(
 }
 
 function RecommendationPageContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const uploadSessionId = searchParams.get("uploadSessionId");
   const tierKey = normalizeTierKey(searchParams.get("tierKey"));
@@ -44,6 +47,8 @@ function RecommendationPageContent() {
   );
   const [isSavingSelection, setIsSavingSelection] = useState(false);
   const [selectionError, setSelectionError] = useState<string | null>(null);
+  const [isStartingGeneration, setIsStartingGeneration] = useState(false);
+  const [generationError, setGenerationError] = useState<string | null>(null);
 
   function applySelection(selection: RecommendationSelectionState) {
     setSelectedStyleId(selection.selectedStyleKey);
@@ -129,6 +134,40 @@ function RecommendationPageContent() {
       );
     } finally {
       setIsSavingSelection(false);
+    }
+  }
+
+  async function handleStartGeneration() {
+    if (
+      !payload ||
+      !selectedStyleId ||
+      !selectedModeId ||
+      !selectedGameplayId
+    ) {
+      setGenerationError("Choose one option in each section before generating.");
+      return;
+    }
+
+    setGenerationError(null);
+    setIsStartingGeneration(true);
+
+    try {
+      const job = await startGeneration({
+        recommendationId: payload.recommendationId,
+        selectedStyleKey: selectedStyleId,
+        selectedModeKey: selectedModeId,
+        selectedGameplayKey: selectedGameplayId,
+      });
+
+      router.push(job.redirectTo);
+    } catch (error: unknown) {
+      setGenerationError(
+        error instanceof Error
+          ? error.message
+          : "Generation could not be started right now.",
+      );
+    } finally {
+      setIsStartingGeneration(false);
     }
   }
 
@@ -271,8 +310,8 @@ function RecommendationPageContent() {
               </div>
             </div>
             <p className="text-sm text-slate-400">
-              Generation comes next. This task stops at choosing a recommendation
-              set.
+              This recommendation set is saved and ready for a mocked generation
+              run.
             </p>
             <p
               className={`text-sm ${
@@ -284,6 +323,23 @@ function RecommendationPageContent() {
                 : isSavingSelection
                   ? "Saving your current picks..."
                   : "Your latest selection is saved with this recommendation set."}
+            </p>
+            <button
+              type="button"
+              onClick={() => void handleStartGeneration()}
+              disabled={isSavingSelection || isStartingGeneration}
+              className="inline-flex w-fit rounded-full bg-cyan-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              {isStartingGeneration ? "Starting generation..." : "Generate result"}
+            </button>
+            <p
+              className={`text-sm ${
+                generationError ? "text-rose-300" : "text-slate-500"
+              }`}
+            >
+              {generationError
+                ? generationError
+                : "We will open a live result page and poll until the mock output is ready."}
             </p>
             <Link
               href="/"

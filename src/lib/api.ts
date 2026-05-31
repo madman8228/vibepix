@@ -1,5 +1,10 @@
 import type { AvatarAnalysis } from "./models/provider-types";
 import type {
+  GenerateRequest,
+  GenerationJobResponse,
+  StartGenerationResponse,
+} from "./schemas/generate";
+import type {
   RecommendationResult,
   RecommendationSelectionState,
   TierKey,
@@ -128,5 +133,35 @@ export async function updateRecommendationSelection(
   return parseApiResponse<RecommendationSelectionResponse>(
     response,
     "Selection update failed. Please try again.",
+  );
+}
+
+export async function startGeneration(
+  request: GenerateRequest,
+): Promise<StartGenerationResponse> {
+  const response = await fetch("/api/generate", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+    },
+    body: JSON.stringify(request),
+  });
+
+  return parseApiResponse<StartGenerationResponse>(
+    response,
+    "Generation failed to start. Please try again.",
+  );
+}
+
+export async function getGenerationJob(
+  jobId: string,
+): Promise<GenerationJobResponse> {
+  const response = await fetch(`/api/jobs/${encodeURIComponent(jobId)}`, {
+    cache: "no-store",
+  });
+
+  return parseApiResponse<GenerationJobResponse>(
+    response,
+    "Job status lookup failed. Please refresh and try again.",
   );
 }
