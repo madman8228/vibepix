@@ -2,6 +2,7 @@ import { defaultGameplay } from "../catalog/default-gameplay";
 import { defaultModes } from "../catalog/default-modes";
 import { defaultStyles } from "../catalog/default-styles";
 import type {
+  TierKey,
   RecommendationGroup,
   RecommendationInput,
   RecommendationResult,
@@ -43,4 +44,14 @@ export function buildRecommendations(
     modes: rankCatalog(defaultModes, input),
     gameplay: rankCatalog(defaultGameplay, input),
   };
+}
+
+export function buildRecommendationsFromAnalysis(input: {
+  vibeTags: string[];
+  tierKey: TierKey;
+}): RecommendationResult {
+  return buildRecommendations({
+    vibeTags: input.vibeTags,
+    tierKey: input.tierKey,
+  });
 }
