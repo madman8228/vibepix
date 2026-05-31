@@ -71,6 +71,17 @@ function resolveSelectionState(
   };
 }
 
+function isSelectionStateEqual(
+  left: RecommendationSelectionState,
+  right: RecommendationSelectionState,
+): boolean {
+  return (
+    left.selectedStyleKey === right.selectedStyleKey &&
+    left.selectedModeKey === right.selectedModeKey &&
+    left.selectedGameplayKey === right.selectedGameplayKey
+  );
+}
+
 function isSelectionAllowed(
   selection: RecommendationSelectionState,
   recommendation: Pick<
@@ -177,50 +188,60 @@ export async function POST(request: Request) {
     vibeTags: analysis.vibeTags,
     tierKey: parsedBody.data.tierKey,
   });
+  const serializedRecommendationKeys = {
+    styleKeys: JSON.stringify(recommendations.styles.map((item) => item.key)),
+    modeKeys: JSON.stringify(recommendations.modes.map((item) => item.key)),
+    gameplayKeys: JSON.stringify(
+      recommendations.gameplay.map((item) => item.key),
+    ),
+  };
+  const defaultSelection = resolveSelectionState(null, recommendations);
 
-  const existingRecommendation = await db.recommendation.findFirst({
+  let storedRecommendation = await db.recommendation.upsert({
     where: {
+      uploadId_tierId: {
+        uploadId: upload.id,
+        tierId: tier.id,
+      },
+    },
+    create: {
       uploadId: upload.id,
       tierId: tier.id,
+      ...serializedRecommendationKeys,
+      ...defaultSelection,
     },
-    orderBy: {
-      createdAt: "asc",
+    update: serializedRecommendationKeys,
+    select: {
+      id: true,
+      selectedStyleKey: true,
+      selectedModeKey: true,
+      selectedGameplayKey: true,
     },
   });
 
-  const selection = resolveSelectionState(
-    existingRecommendation,
-    recommendations,
-  );
+  const selection = resolveSelectionState(storedRecommendation, recommendations);
 
-  const storedRecommendation = existingRecommendation
-    ? await db.recommendation.update({
-        where: { id: existingRecommendation.id },
-        data: {
-          styleKeys: JSON.stringify(
-            recommendations.styles.map((item) => item.key),
-          ),
-          modeKeys: JSON.stringify(recommendations.modes.map((item) => item.key)),
-          gameplayKeys: JSON.stringify(
-            recommendations.gameplay.map((item) => item.key),
-          ),
-          ...selection,
-        },
-      })
-    : await db.recommendation.create({
-        data: {
-          uploadId: upload.id,
-          tierId: tier.id,
-          styleKeys: JSON.stringify(
-            recommendations.styles.map((item) => item.key),
-          ),
-          modeKeys: JSON.stringify(recommendations.modes.map((item) => item.key)),
-          gameplayKeys: JSON.stringify(
-            recommendations.gameplay.map((item) => item.key),
-          ),
-          ...selection,
-        },
-      });
+  if (
+    !isSelectionStateEqual(
+      {
+        selectedStyleKey: storedRecommendation.selectedStyleKey,
+        selectedModeKey: storedRecommendation.selectedModeKey,
+        selectedGameplayKey: storedRecommendation.selectedGameplayKey,
+      },
+      selection,
+    )
+  ) {
+    storedRecommendation = await db.recommendation.update({
+      where: { id: storedRecommendation.id },
+      data: selection,
+      select: {
+        id: true,
+        selectedStyleKey: true,
+        selectedModeKey: true,
+        selectedGameplayKey: true,
+      },
+    });
+  }
 
   return Response.json({
     recommendationId: storedRecommendation.id,

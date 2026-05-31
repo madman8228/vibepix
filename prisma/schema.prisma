@@ -88,6 +88,7 @@ model Recommendation {
   tier               Tier     @relation(fields: [tierId], references: [id], onDelete: Restrict)
   jobs               Job[]
 
+  @@unique([uploadId, tierId])
   @@index([uploadId])
   @@index([tierId])
 }

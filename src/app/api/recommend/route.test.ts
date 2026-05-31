@@ -158,6 +158,36 @@ describe("POST /api/recommend", () => {
     ).resolves.toBe(1);
   });
 
+  it("enforces one recommendation row per upload and tier at the database layer", async () => {
+    await db.recommendation.create({
+      data: {
+        uploadId,
+        tierId,
+        styleKeys: JSON.stringify(["storybook-pastel"]),
+        modeKeys: JSON.stringify(["single-scene"]),
+        gameplayKeys: JSON.stringify(["slice-of-life"]),
+        selectedStyleKey: "storybook-pastel",
+        selectedModeKey: "single-scene",
+        selectedGameplayKey: "slice-of-life",
+      },
+    });
+
+    await expect(
+      db.recommendation.create({
+        data: {
+          uploadId,
+          tierId,
+          styleKeys: JSON.stringify(["campus-anime"]),
+          modeKeys: JSON.stringify(["day-in-the-life"]),
+          gameplayKeys: JSON.stringify(["study-buddy-quest"]),
+          selectedStyleKey: "campus-anime",
+          selectedModeKey: "day-in-the-life",
+          selectedGameplayKey: "study-buddy-quest",
+        },
+      }),
+    ).rejects.toThrow();
+  });
+
   it("persists selected keys and returns them on later loads", async () => {
     const initialResponse = await POST(
       new Request("http://localhost/api/recommend", {

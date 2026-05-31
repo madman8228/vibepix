@@ -5,12 +5,11 @@ import { useRouter } from "next/navigation";
 
 import { uploadAvatar } from "../../lib/api";
 
-type UploadState = "idle" | "uploading" | "analyzing" | "error";
+type UploadState = "idle" | "uploading" | "error";
 
 const statusCopy: Record<Exclude<UploadState, "error">, string> = {
   idle: "Upload a JPG or PNG to get AI recommendation starters.",
   uploading: "Uploading avatar...",
-  analyzing: "Analyzing your avatar vibe...",
 };
 
 export function AvatarUploadForm() {
@@ -35,7 +34,6 @@ export function AvatarUploadForm() {
     try {
       const response = await uploadAvatar(file);
 
-      setUploadState("analyzing");
       router.push(
         `/recommend?uploadSessionId=${encodeURIComponent(
           response.uploadSessionId,
@@ -115,10 +113,6 @@ export function AvatarUploadForm() {
           <li>
             <span className="font-semibold text-white">Uploading:</span>{" "}
             sending the JSON upload payload.
-          </li>
-          <li>
-            <span className="font-semibold text-white">Analyzing:</span>{" "}
-            handing off to recommendations.
           </li>
           <li>
             <span className="font-semibold text-white">Error:</span> recover
