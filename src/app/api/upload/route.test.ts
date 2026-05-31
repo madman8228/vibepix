@@ -48,6 +48,22 @@ describe("POST /api/upload", () => {
     });
   });
 
+  it("rejects a fileName-only upload payload", async () => {
+    const response = await POST(
+      new Request("http://localhost/api/upload", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          fileName: "avatar.jpg",
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(400);
+  });
+
   it("rejects an empty upload payload", async () => {
     const response = await POST(
       new Request("http://localhost/api/upload", {
