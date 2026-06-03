@@ -42,17 +42,21 @@ model Upload {
   fileName         String?
   sourceUrl        String
   mimeType         String?
+  complianceStatus String           @default("APPROVED")
+  blockedReason    String?
   analysisSummary  String?
   vibeTags         String?
+  jobs             Job[]
   recommendations  Recommendation[]
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
+
+  @@index([complianceStatus])
 }
 
 model CatalogItem {
   id              String      @id @default(cuid())
   kind            CatalogKind
-  /// Stable domain key used by recommendations, admin config, and seed data.
   key             String      @unique
   title           String
   description     String?
@@ -70,23 +74,20 @@ model CatalogItem {
 }
 
 model Recommendation {
-  id                 String   @id @default(cuid())
-  uploadId           String
-  tierId             String
-  /// Serialized JSON array of recommended CatalogItem keys for styles.
-  styleKeys          String
-  /// Serialized JSON array of recommended CatalogItem keys for modes.
-  modeKeys           String
-  /// Serialized JSON array of recommended CatalogItem keys for gameplay options.
-  gameplayKeys       String
-  selectedStyleKey   String?
-  selectedModeKey    String?
+  id                  String   @id @default(cuid())
+  uploadId            String
+  tierId              String
+  styleKeys           String
+  modeKeys            String
+  gameplayKeys        String
+  selectedStyleKey    String?
+  selectedModeKey     String?
   selectedGameplayKey String?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-  upload             Upload   @relation(fields: [uploadId], references: [id], onDelete: Cascade)
-  tier               Tier     @relation(fields: [tierId], references: [id], onDelete: Restrict)
-  jobs               Job[]
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  upload              Upload   @relation(fields: [uploadId], references: [id], onDelete: Cascade)
+  tier                Tier     @relation(fields: [tierId], references: [id], onDelete: Restrict)
+  jobs                Job[]
 
   @@unique([uploadId, tierId])
   @@index([uploadId])
@@ -122,21 +123,33 @@ model ModelRoute {
 
 model Job {
   id               String          @id @default(cuid())
+  uploadId         String?
+  playType         String?
+  playCategory     String?
   recommendationId String?
   tierId           String
   routeId          String?
   promptTemplateId String?
   status           JobStatus       @default(PENDING)
   panelCount       Int             @default(1)
+  ratingScore      Float?
+  outputTitle      String?
   outputSummary    String?
+  outputHighlights String?
+  outputSuggestion String?
+  outputDisclaimer String?
+  dailyKey         String?
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
+  upload           Upload?         @relation(fields: [uploadId], references: [id], onDelete: SetNull)
   recommendation   Recommendation? @relation(fields: [recommendationId], references: [id], onDelete: SetNull)
   tier             Tier            @relation(fields: [tierId], references: [id], onDelete: Restrict)
   route            ModelRoute?     @relation(fields: [routeId], references: [id], onDelete: SetNull)
   promptTemplate   PromptTemplate? @relation(fields: [promptTemplateId], references: [id], onDelete: SetNull)
   works            Work[]
 
+  @@index([uploadId])
+  @@index([playType])
   @@index([recommendationId])
   @@index([tierId])
   @@index([routeId])

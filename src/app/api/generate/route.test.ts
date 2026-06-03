@@ -1,149 +1,49 @@
-import {
-  afterAll,
-  beforeAll,
-  beforeEach,
-  describe,
-  expect,
-  it,
-} from "vitest";
-
-import { CatalogKind } from "@prisma/client";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { db } from "../../../lib/db";
-import { defaultGameplay } from "../../../lib/catalog/default-gameplay";
-import { defaultModes } from "../../../lib/catalog/default-modes";
-import { defaultStyles } from "../../../lib/catalog/default-styles";
-import {
-  getGenerationJob,
-  prepareGenerationArtifacts,
-} from "../../../lib/orchestration/pipeline";
+import { GET, PATCH } from "../jobs/[jobId]/route";
 import { POST } from "./route";
 
-const uploadId = "generate-upload-session";
-const tierKey = "free";
-const tierName = "Free";
-const recommendationId = "generate-recommendation";
-const selectedKeys = {
-  selectedStyleKey: "campus-anime",
-  selectedModeKey: "day-in-the-life",
-  selectedGameplayKey: "study-buddy-quest",
-};
+const uploadId = "play-execution-upload";
 
-function toCatalogSeedData(
-  kind: CatalogKind,
-  item: {
-    key: string;
-    title: string;
-    description: string;
-    reason: string;
-    tags: string[];
-    tierKeys: string[];
-    sortOrder: number;
-    previewImageUrl?: string;
-  },
-) {
+function buildRouteContext(jobId: string) {
   return {
-    kind,
-    key: item.key,
-    title: item.title,
-    description: item.description,
-    reason: item.reason,
-    previewImageUrl: item.previewImageUrl ?? null,
-    tags: JSON.stringify(item.tags),
-    tierKeys: JSON.stringify(item.tierKeys),
-    sortOrder: item.sortOrder,
-    isActive: true,
+    params: Promise.resolve({
+      jobId,
+    }),
   };
 }
 
-describe("POST /api/generate", () => {
+describe("play execution routes", () => {
   beforeAll(async () => {
-    await db.tier.upsert({
-      where: { key: tierKey },
-      update: {
-        name: tierName,
-        maxPanels: 1,
-        monthlyQuota: 5,
-      },
-      create: {
-        key: tierKey,
-        name: tierName,
-        maxPanels: 1,
-        monthlyQuota: 5,
-      },
-    });
-
     await db.upload.upsert({
       where: { id: uploadId },
       update: {
-        sourceUrl: "https://example.com/avatar.jpg",
-        analysisSummary: "Warm portrait with a calm, approachable feeling.",
-        vibeTags: JSON.stringify(["gentle", "portrait", "friendly"]),
+        sourceUrl: "https://example.com/avatar-happy.jpg",
+        analysisSummary: "Bright and upbeat portrait with a friendly social vibe.",
+        vibeTags: JSON.stringify(["bright", "friendly", "upbeat"]),
+        complianceStatus: "APPROVED",
       },
       create: {
         id: uploadId,
-        sourceUrl: "https://example.com/avatar.jpg",
-        analysisSummary: "Warm portrait with a calm, approachable feeling.",
-        vibeTags: JSON.stringify(["gentle", "portrait", "friendly"]),
+        sourceUrl: "https://example.com/avatar-happy.jpg",
+        analysisSummary: "Bright and upbeat portrait with a friendly social vibe.",
+        vibeTags: JSON.stringify(["bright", "friendly", "upbeat"]),
+        complianceStatus: "APPROVED",
       },
     });
-
-    for (const item of defaultStyles) {
-      await db.catalogItem.upsert({
-        where: { key: item.key },
-        update: toCatalogSeedData(CatalogKind.STYLE, item),
-        create: toCatalogSeedData(CatalogKind.STYLE, item),
-      });
-    }
-
-    for (const item of defaultModes) {
-      await db.catalogItem.upsert({
-        where: { key: item.key },
-        update: toCatalogSeedData(CatalogKind.MODE, item),
-        create: toCatalogSeedData(CatalogKind.MODE, item),
-      });
-    }
-
-    for (const item of defaultGameplay) {
-      await db.catalogItem.upsert({
-        where: { key: item.key },
-        update: toCatalogSeedData(CatalogKind.GAMEPLAY, item),
-        create: toCatalogSeedData(CatalogKind.GAMEPLAY, item),
-      });
-    }
   });
 
   beforeEach(async () => {
     await db.work.deleteMany({
       where: {
         job: {
-          recommendationId,
+          uploadId,
         },
       },
     });
     await db.job.deleteMany({
-      where: { recommendationId },
-    });
-    await db.recommendation.deleteMany({
-      where: { id: recommendationId },
-    });
-
-    const tier = await db.tier.findUniqueOrThrow({
-      where: { key: tierKey },
-    });
-
-    await db.recommendation.create({
-      data: {
-        id: recommendationId,
-        uploadId,
-        tierId: tier.id,
-        styleKeys: JSON.stringify(defaultStyles.map((item) => item.key)),
-        modeKeys: JSON.stringify(defaultModes.map((item) => item.key)),
-        gameplayKeys: JSON.stringify(defaultGameplay.map((item) => item.key)),
-        selectedStyleKey: "storybook-pastel",
-        selectedModeKey: "single-scene",
-        selectedGameplayKey: "slice-of-life",
-      },
+      where: { uploadId },
     });
   });
 
@@ -151,114 +51,36 @@ describe("POST /api/generate", () => {
     await db.work.deleteMany({
       where: {
         job: {
-          recommendationId,
+          uploadId,
         },
       },
     });
     await db.job.deleteMany({
-      where: { recommendationId },
-    });
-    await db.recommendation.deleteMany({
-      where: { id: recommendationId },
+      where: { uploadId },
     });
     await db.upload.deleteMany({
       where: { id: uploadId },
     });
   });
 
-  it("creates a running generation job from a recommendation and selected keys", async () => {
-    const response = await POST(
+  it("starts a text play and returns a single structured result with optional rating", async () => {
+    const startResponse = await POST(
       new Request("http://localhost/api/generate", {
         method: "POST",
-        body: JSON.stringify({
-          recommendationId,
-          ...selectedKeys,
-        }),
         headers: {
           "content-type": "application/json",
         },
-      }),
-    );
-
-    expect(response.status).toBe(202);
-
-    const payload = await response.json();
-
-    expect(payload).toMatchObject({
-      jobId: expect.any(String),
-      status: "RUNNING",
-      redirectTo: expect.stringMatching(/^\/generate\//),
-    });
-
-    await expect(
-      db.recommendation.findUniqueOrThrow({
-        where: { id: recommendationId },
-        select: {
-          selectedStyleKey: true,
-          selectedModeKey: true,
-          selectedGameplayKey: true,
-        },
-      }),
-    ).resolves.toMatchObject(selectedKeys);
-
-    await expect(
-      db.job.findUniqueOrThrow({
-        where: { id: payload.jobId as string },
-        select: {
-          recommendationId: true,
-          panelCount: true,
-          status: true,
-          outputSummary: true,
-        },
-      }),
-    ).resolves.toMatchObject({
-      recommendationId,
-      panelCount: 1,
-      status: "RUNNING",
-      outputSummary: expect.stringContaining("Study Buddy Quest"),
-    });
-
-    await expect(
-      db.work.findMany({
-        where: {
-          jobId: payload.jobId as string,
-        },
-        orderBy: {
-          panelIndex: "asc",
-        },
-        select: {
-          id: true,
-          title: true,
-          imageUrl: true,
-        },
-      }),
-    ).resolves.toEqual([
-      {
-        id: `${payload.jobId as string}_panel_1`,
-        title: "Panel 1",
-        imageUrl: expect.stringMatching(/^data:image\/svg\+xml/),
-      },
-    ]);
-  });
-
-  it("returns the canonical generated result contract once the running job is ready", async () => {
-    const response = await POST(
-      new Request("http://localhost/api/generate", {
-        method: "POST",
         body: JSON.stringify({
-          recommendationId,
-          ...selectedKeys,
+          uploadSessionId: uploadId,
+          playType: "personality_read",
         }),
-        headers: {
-          "content-type": "application/json",
-        },
       }),
     );
 
-    expect(response.status).toBe(202);
+    expect(startResponse.status).toBe(202);
 
-    const payload = await response.json();
-    const jobId = payload.jobId as string;
+    const { jobId } = await startResponse.json();
+    expect(jobId).toEqual(expect.any(String));
 
     await db.job.update({
       where: { id: jobId },
@@ -267,47 +89,121 @@ describe("POST /api/generate", () => {
       },
     });
 
-    const expected = prepareGenerationArtifacts({
-      jobId,
-      analysis: {
-        summary: "Warm portrait with a calm, approachable feeling.",
-        vibeTags: ["gentle", "portrait", "friendly"],
-      },
-      selection: {
-        style: defaultStyles[1],
-        mode: defaultModes[1],
-        gameplay: defaultGameplay[1],
-      },
-      panelCount: 1,
-    }).result;
+    const resultResponse = await GET(
+      new Request(`http://localhost/api/jobs/${jobId}`),
+      buildRouteContext(jobId),
+    );
 
-    await expect(getGenerationJob(jobId)).resolves.toMatchObject({
+    expect(resultResponse.status).toBe(200);
+
+    await expect(resultResponse.json()).resolves.toMatchObject({
       jobId,
-      status: "SUCCEEDED",
-      result: expected,
-      errorMessage: null,
+      playType: "personality_read",
+      result: {
+        kind: "text",
+        title: expect.any(String),
+        summary: expect.any(String),
+        highlights: [expect.any(String), expect.any(String), expect.any(String)],
+        suggestion: expect.any(String),
+        disclaimer: expect.any(String),
+      },
+      rating: {
+        score: null,
+      },
     });
   });
 
-  it("rejects generation requests that pick keys outside the recommendation set", async () => {
-    const response = await POST(
+  it("keeps daily fortune stable for the same upload on the same day", async () => {
+    const firstResponse = await POST(
       new Request("http://localhost/api/generate", {
         method: "POST",
-        body: JSON.stringify({
-          recommendationId,
-          selectedStyleKey: "not-in-set",
-          selectedModeKey: selectedKeys.selectedModeKey,
-          selectedGameplayKey: selectedKeys.selectedGameplayKey,
-        }),
         headers: {
           "content-type": "application/json",
         },
+        body: JSON.stringify({
+          uploadSessionId: uploadId,
+          playType: "daily_fortune",
+        }),
+      }),
+    );
+    const secondResponse = await POST(
+      new Request("http://localhost/api/generate", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          uploadSessionId: uploadId,
+          playType: "daily_fortune",
+        }),
       }),
     );
 
-    expect(response.status).toBe(409);
-    await expect(response.json()).resolves.toMatchObject({
-      error: "Selection is not valid for this recommendation.",
+    const firstJob = await firstResponse.json();
+    const secondJob = await secondResponse.json();
+
+    await db.job.updateMany({
+      where: {
+        id: {
+          in: [firstJob.jobId, secondJob.jobId],
+        },
+      },
+      data: {
+        createdAt: new Date(Date.now() - 5_000),
+      },
+    });
+
+    const firstResult = await (
+      await GET(
+        new Request(`http://localhost/api/jobs/${firstJob.jobId}`),
+        buildRouteContext(firstJob.jobId),
+      )
+    ).json();
+    const secondResult = await (
+      await GET(
+        new Request(`http://localhost/api/jobs/${secondJob.jobId}`),
+        buildRouteContext(secondJob.jobId),
+      )
+    ).json();
+
+    expect(firstResult.result).toMatchObject(secondResult.result);
+  });
+
+  it("stores optional half-star ratings for single play results", async () => {
+    const startResponse = await POST(
+      new Request("http://localhost/api/generate", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          uploadSessionId: uploadId,
+          playType: "poster",
+        }),
+      }),
+    );
+
+    const { jobId } = await startResponse.json();
+
+    const ratingResponse = await PATCH(
+      new Request(`http://localhost/api/jobs/${jobId}`, {
+        method: "PATCH",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          score: 4.5,
+        }),
+      }),
+      buildRouteContext(jobId),
+    );
+
+    expect(ratingResponse.status).toBe(200);
+    await expect(ratingResponse.json()).resolves.toMatchObject({
+      jobId,
+      rating: {
+        score: 4.5,
+      },
     });
   });
 });

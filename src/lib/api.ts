@@ -1,14 +1,10 @@
-import type { AvatarAnalysis } from "./models/provider-types";
+import type { AvatarAnalysis, PlayDescriptor, PlayType } from "./types";
 import type {
-  GenerateRequest,
-  GenerationJobResponse,
-  StartGenerationResponse,
+  PlayJobResponse,
+  PlayRatingResponse,
+  StartPlayRequest,
+  StartPlayResponse,
 } from "./schemas/generate";
-import type {
-  RecommendationResult,
-  RecommendationSelectionState,
-  TierKey,
-} from "./types";
 
 type ApiErrorShape = {
   error?: string;
@@ -19,16 +15,12 @@ export type UploadResponse = {
   analysis: AvatarAnalysis;
 };
 
-export type RecommendationResponse = {
-  recommendationId: string;
+export type PlayLobbyResponse = {
   uploadSessionId: string;
   analysis: AvatarAnalysis;
-  recommendations: RecommendationResult;
-} & RecommendationSelectionState;
-
-export type RecommendationSelectionResponse = {
-  recommendationId: string;
-} & RecommendationSelectionState;
+  recommendedPlays: PlayDescriptor[];
+  availablePlays: PlayDescriptor[];
+};
 
 async function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -51,14 +43,8 @@ async function fileToDataUrl(file: File): Promise<string> {
   });
 }
 
-async function parseApiResponse<T>(
-  response: Response,
-  fallbackMessage: string,
-): Promise<T> {
-  const payload = (await response.json().catch(() => null)) as
-    | ApiErrorShape
-    | T
-    | null;
+async function parseApiResponse<T>(response: Response, fallbackMessage: string) {
+  const payload = (await response.json().catch(() => null)) as ApiErrorShape | T | null;
 
   if (!response.ok) {
     throw new Error(
@@ -94,51 +80,26 @@ export async function uploadAvatar(file: File): Promise<UploadResponse> {
   );
 }
 
-export async function getRecommendations(
+export async function getPlayLobby(
   uploadSessionId: string,
-  tierKey: TierKey,
-): Promise<RecommendationResponse> {
+): Promise<PlayLobbyResponse> {
   const response = await fetch("/api/recommend", {
     method: "POST",
     headers: {
       "content-type": "application/json",
     },
-    body: JSON.stringify({
-      uploadSessionId,
-      tierKey,
-    }),
+    body: JSON.stringify({ uploadSessionId }),
   });
 
-  return parseApiResponse<RecommendationResponse>(
+  return parseApiResponse<PlayLobbyResponse>(
     response,
-    "Recommendation lookup failed. Please upload again.",
+    "Play lobby failed to load. Please upload again.",
   );
 }
 
-export async function updateRecommendationSelection(
-  recommendationId: string,
-  selection: RecommendationSelectionState,
-): Promise<RecommendationSelectionResponse> {
-  const response = await fetch("/api/recommend", {
-    method: "PATCH",
-    headers: {
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({
-      recommendationId,
-      ...selection,
-    }),
-  });
-
-  return parseApiResponse<RecommendationSelectionResponse>(
-    response,
-    "Selection update failed. Please try again.",
-  );
-}
-
-export async function startGeneration(
-  request: GenerateRequest,
-): Promise<StartGenerationResponse> {
+export async function startPlay(
+  request: StartPlayRequest,
+): Promise<StartPlayResponse> {
   const response = await fetch("/api/generate", {
     method: "POST",
     headers: {
@@ -147,21 +108,39 @@ export async function startGeneration(
     body: JSON.stringify(request),
   });
 
-  return parseApiResponse<StartGenerationResponse>(
+  return parseApiResponse<StartPlayResponse>(
     response,
-    "Generation failed to start. Please try again.",
+    "This play could not be started right now.",
   );
 }
 
-export async function getGenerationJob(
-  jobId: string,
-): Promise<GenerationJobResponse> {
+export async function getPlayJob(jobId: string): Promise<PlayJobResponse> {
   const response = await fetch(`/api/jobs/${encodeURIComponent(jobId)}`, {
     cache: "no-store",
   });
 
-  return parseApiResponse<GenerationJobResponse>(
+  return parseApiResponse<PlayJobResponse>(
     response,
-    "Job status lookup failed. Please refresh and try again.",
+    "Play result lookup failed. Please refresh and try again.",
   );
 }
+
+export async function ratePlayJob(
+  jobId: string,
+  score: number,
+): Promise<PlayRatingResponse> {
+  const response = await fetch(`/api/jobs/${encodeURIComponent(jobId)}`, {
+    method: "PATCH",
+    headers: {
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({ score }),
+  });
+
+  return parseApiResponse<PlayRatingResponse>(
+    response,
+    "We could not save that rating right now.",
+  );
+}
+
+export type { PlayType };

@@ -1,4 +1,14 @@
 import { spawn } from "node:child_process";
+import { mkdir, open } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
+
+const databaseFilePath = resolve(process.cwd(), "prisma", "dev.db");
+
+async function ensureSqliteFileExists() {
+  await mkdir(dirname(databaseFilePath), { recursive: true });
+  const handle = await open(databaseFilePath, "a");
+  await handle.close();
+}
 
 async function runPrismaCommand(commandText: string) {
   const command =
@@ -22,6 +32,7 @@ async function runPrismaCommand(commandText: string) {
 }
 
 async function main() {
+  await ensureSqliteFileExists();
   await runPrismaCommand("prisma db push");
   await runPrismaCommand("prisma generate");
 }

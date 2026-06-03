@@ -1,14 +1,31 @@
-export type AvatarAnalysis = {
-  summary: string;
-  vibeTags: string[];
-};
+import type { AvatarAnalysis, PlayResult, PlayType } from "../types";
 
-export type AvatarAnalysisInput = {
+export type ComplianceCheckResult =
+  | {
+      status: "approved";
+    }
+  | {
+      status: "blocked";
+      reason: string;
+    };
+
+export type AvatarInspectionInput = {
   sourceUrl: string;
   fileName?: string | null;
   mimeType?: string | null;
 };
 
-export interface ImageUnderstandingProvider {
-  analyzeAvatar(input: AvatarAnalysisInput): Promise<AvatarAnalysis>;
+export type AvatarInspectionResult = {
+  compliance: ComplianceCheckResult;
+  analysis: AvatarAnalysis | null;
+};
+
+export interface AvatarIntelligenceProvider {
+  inspectAvatar(input: AvatarInspectionInput): Promise<AvatarInspectionResult>;
+  executePlay(input: {
+    uploadId: string;
+    playType: PlayType;
+    analysis: AvatarAnalysis;
+    now: Date;
+  }): Promise<PlayResult>;
 }

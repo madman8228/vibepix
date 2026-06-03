@@ -8,8 +8,8 @@ import { uploadAvatar } from "../../lib/api";
 type UploadState = "idle" | "uploading" | "error";
 
 const statusCopy: Record<Exclude<UploadState, "error">, string> = {
-  idle: "Upload a JPG or PNG to get AI recommendation starters.",
-  uploading: "Uploading avatar...",
+  idle: "Upload a JPG or PNG to get a fast avatar read and a recommended play lineup.",
+  uploading: "Checking image compliance and building your avatar summary...",
 };
 
 export function AvatarUploadForm() {
@@ -19,9 +19,7 @@ export function AvatarUploadForm() {
   const [fileName, setFileName] = useState<string | null>(null);
   const uploadInFlightRef = useRef(false);
 
-  async function handleFileChange(
-    event: React.ChangeEvent<HTMLInputElement>,
-  ) {
+  async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const input = event.currentTarget;
 
     if (uploadInFlightRef.current) {
@@ -42,19 +40,12 @@ export function AvatarUploadForm() {
 
     try {
       const response = await uploadAvatar(file);
-
-      router.push(
-        `/recommend?uploadSessionId=${encodeURIComponent(
-          response.uploadSessionId,
-        )}&tierKey=free`,
-      );
+      router.push(`/recommend?uploadSessionId=${encodeURIComponent(response.uploadSessionId)}`);
     } catch (error: unknown) {
       setUploadState("error");
       setFileName(null);
       setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "We could not process this upload.",
+        error instanceof Error ? error.message : "We could not process this upload.",
       );
       input.value = "";
     } finally {
@@ -76,19 +67,16 @@ export function AvatarUploadForm() {
             Upload
           </p>
           <h2 className="text-3xl font-semibold text-slate-950">
-            Drop in an avatar and we will route you to a recommendation set.
+            Start with one avatar.
           </h2>
           <p className="max-w-2xl text-base leading-7 text-slate-600">
-            This MVP uses the existing upload and recommendation APIs to prove
-            the first consumer flow. Selecting a file starts immediately.
+            We will first run a lightweight safety check, then build a short visible summary and route
+            you into a recommended play lobby.
           </p>
         </div>
 
         <div className="rounded-[1.5rem] border border-dashed border-slate-300 bg-slate-50 p-5">
-          <label
-            htmlFor="avatar-upload"
-            className="block text-sm font-semibold text-slate-900"
-          >
+          <label htmlFor="avatar-upload" className="block text-sm font-semibold text-slate-900">
             Avatar upload
           </label>
           <input
@@ -100,37 +88,26 @@ export function AvatarUploadForm() {
             disabled={isUploading}
             onChange={handleFileChange}
           />
-          <p
-            className={`mt-3 text-sm ${
-              uploadState === "error" ? "text-rose-600" : "text-slate-600"
-            }`}
-          >
+          <p className={`mt-3 text-sm ${uploadState === "error" ? "text-rose-600" : "text-slate-600"}`}>
             {helperText}
           </p>
           {fileName ? (
-            <p className="mt-2 text-sm font-medium text-slate-900">
-              Selected file: {fileName}
-            </p>
+            <p className="mt-2 text-sm font-medium text-slate-900">Selected file: {fileName}</p>
           ) : null}
         </div>
       </div>
 
       <aside className="rounded-[1.5rem] bg-slate-950 p-5 text-slate-50">
-        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-amber-300">
-          Flow states
-        </p>
+        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-amber-300">What happens next</p>
         <ul className="mt-4 space-y-3 text-sm text-slate-300">
           <li>
-            <span className="font-semibold text-white">Idle:</span> waiting for
-            an avatar.
+            <span className="font-semibold text-white">1.</span> Check the image for obvious compliance issues.
           </li>
           <li>
-            <span className="font-semibold text-white">Uploading:</span>{" "}
-            sending the JSON upload payload.
+            <span className="font-semibold text-white">2.</span> Generate a short avatar analysis summary.
           </li>
           <li>
-            <span className="font-semibold text-white">Error:</span> recover
-            inline and let the user retry.
+            <span className="font-semibold text-white">3.</span> Send you into a play lobby with recommendations.
           </li>
         </ul>
       </aside>

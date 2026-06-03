@@ -1,8 +1,8 @@
-import type { GenerationJobProgress, GenerationJobStatus } from "../../lib/schemas/generate";
+import type { PlayJobProgress, PlayJobStatus } from "../../lib/schemas/generate";
 
 type JobProgressProps = {
-  status: GenerationJobStatus;
-  progress: GenerationJobProgress;
+  status: PlayJobStatus;
+  progress: PlayJobProgress;
 };
 
 export function JobProgress({ status, progress }: JobProgressProps) {
@@ -14,9 +14,7 @@ export function JobProgress({ status, progress }: JobProgressProps) {
             {progress.label}
           </p>
           <h2 className="text-3xl font-semibold text-white">
-            {status === "SUCCEEDED"
-              ? "Mock generation complete"
-              : "Building your result"}
+            {status === "SUCCEEDED" ? "Play result ready" : "Building your selected play"}
           </h2>
           <p className="max-w-2xl text-base text-slate-300">{progress.message}</p>
         </div>

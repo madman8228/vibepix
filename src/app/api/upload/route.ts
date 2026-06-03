@@ -1,5 +1,5 @@
 import { db } from "../../../lib/db";
-import { getImageUnderstandingProvider } from "../../../lib/models/provider-registry";
+import { getAvatarIntelligenceProvider } from "../../../lib/models/provider-registry";
 import { uploadRequestSchema } from "../../../lib/schemas/upload";
 
 export async function POST(request: Request) {
@@ -30,21 +30,31 @@ export async function POST(request: Request) {
     );
   }
 
-  const provider = getImageUnderstandingProvider();
-  const analysis = await provider.analyzeAvatar(parsedBody.data);
+  const provider = getAvatarIntelligenceProvider();
+  const inspection = await provider.inspectAvatar(parsedBody.data);
+
+  if (inspection.compliance.status === "blocked") {
+    return Response.json(
+      {
+        error: inspection.compliance.reason,
+      },
+      { status: 409 },
+    );
+  }
 
   const upload = await db.upload.create({
     data: {
       fileName: parsedBody.data.fileName ?? null,
       sourceUrl: parsedBody.data.sourceUrl,
       mimeType: parsedBody.data.mimeType ?? null,
-      analysisSummary: analysis.summary,
-      vibeTags: JSON.stringify(analysis.vibeTags),
+      complianceStatus: "APPROVED",
+      analysisSummary: inspection.analysis?.summary ?? null,
+      vibeTags: JSON.stringify(inspection.analysis?.tags ?? []),
     },
   });
 
   return Response.json({
     uploadSessionId: upload.id,
-    analysis,
+    analysis: inspection.analysis,
   });
 }

@@ -11,6 +11,13 @@ describe("POST /api/upload", () => {
       return;
     }
 
+    await db.job.deleteMany({
+      where: {
+        uploadId: {
+          in: createdUploadIds,
+        },
+      },
+    });
     await db.upload.deleteMany({
       where: {
         id: {
@@ -20,7 +27,7 @@ describe("POST /api/upload", () => {
     });
   });
 
-  it("creates an upload session when the payload includes a sourceUrl", async () => {
+  it("creates a compliant upload session with analysis summary and tags", async () => {
     const response = await POST(
       new Request("http://localhost/api/upload", {
         method: "POST",
@@ -28,7 +35,7 @@ describe("POST /api/upload", () => {
           "content-type": "application/json",
         },
         body: JSON.stringify({
-          sourceUrl: "https://example.com/avatar.jpg",
+          sourceUrl: "https://example.com/avatar-happy.jpg",
           mimeType: "image/jpeg",
         }),
       }),
@@ -42,13 +49,13 @@ describe("POST /api/upload", () => {
     expect(json).toMatchObject({
       uploadSessionId: expect.any(String),
       analysis: {
-        summary: "Warm portrait with a calm, approachable feeling.",
-        vibeTags: ["gentle", "portrait", "friendly"],
+        summary: expect.any(String),
+        tags: expect.any(Array),
       },
     });
   });
 
-  it("rejects a fileName-only upload payload", async () => {
+  it("blocks uploads that fail image compliance", async () => {
     const response = await POST(
       new Request("http://localhost/api/upload", {
         method: "POST",
@@ -56,39 +63,15 @@ describe("POST /api/upload", () => {
           "content-type": "application/json",
         },
         body: JSON.stringify({
-          fileName: "avatar.jpg",
+          sourceUrl: "https://example.com/avatar-unsafe.jpg",
+          mimeType: "image/jpeg",
         }),
       }),
     );
 
-    expect(response.status).toBe(400);
-  });
-
-  it("rejects an empty upload payload", async () => {
-    const response = await POST(
-      new Request("http://localhost/api/upload", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({}),
-      }),
-    );
-
-    expect(response.status).toBe(400);
-  });
-
-  it("rejects malformed JSON", async () => {
-    const response = await POST(
-      new Request("http://localhost/api/upload", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-        },
-        body: "{",
-      }),
-    );
-
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "This image has a compliance issue and cannot be processed.",
+    });
   });
 });

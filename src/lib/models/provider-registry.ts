@@ -1,6 +1,5 @@
-import type { ImageUnderstandingProvider } from "./provider-types";
-import { mockImageUnderstandingProvider } from "./mock-image-understanding";
+import { mockAvatarIntelligenceProvider } from "./mock-avatar-intelligence";
 
-export function getImageUnderstandingProvider(): ImageUnderstandingProvider {
-  return mockImageUnderstandingProvider;
+export function getAvatarIntelligenceProvider() {
+  return mockAvatarIntelligenceProvider;
 }

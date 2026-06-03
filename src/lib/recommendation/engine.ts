@@ -1,57 +1,36 @@
-import { defaultGameplay } from "../catalog/default-gameplay";
-import { defaultModes } from "../catalog/default-modes";
-import { defaultStyles } from "../catalog/default-styles";
-import type {
-  TierKey,
-  RecommendationGroup,
-  RecommendationInput,
-  RecommendationResult,
-} from "../types";
+import { defaultPlays } from "../catalog/default-plays";
+import type { PlayDescriptor, PlayRecommendationInput, PlayRecommendationResult } from "../types";
 
-const MAX_GROUP_RESULTS = 3;
+function scorePlay(play: PlayDescriptor, input: PlayRecommendationInput) {
+  const normalizedTags = input.tags.map((tag) => tag.toLowerCase());
 
-function rankCatalog(
-  items: RecommendationGroup[],
-  input: RecommendationInput,
-): RecommendationGroup[] {
-  const normalizedTags = input.vibeTags.map((tag) => tag.toLowerCase());
+  return play.tags.reduce((score, tag) => {
+    return score + (normalizedTags.includes(tag.toLowerCase()) ? 1 : 0);
+  }, 0);
+}
 
-  return items
-    .filter((item) => item.tierKeys.includes(input.tierKey))
-    .map((item) => {
-      const score = item.tags.reduce((total, tag) => {
-        return total + (normalizedTags.includes(tag.toLowerCase()) ? 1 : 0);
-      }, 0);
-
-      return { item, score };
-    })
+function rankPlays(category: "text" | "image", input: PlayRecommendationInput) {
+  return defaultPlays
+    .filter((play) => play.category === category)
+    .map((play) => ({ play, score: scorePlay(play, input) }))
     .sort((left, right) => {
       if (right.score !== left.score) {
         return right.score - left.score;
       }
 
-      return left.item.sortOrder - right.item.sortOrder;
+      return defaultPlays.indexOf(left.play) - defaultPlays.indexOf(right.play);
     })
-    .slice(0, MAX_GROUP_RESULTS)
-    .map(({ item }) => item);
+    .map(({ play }) => play);
 }
 
-export function buildRecommendations(
-  input: RecommendationInput,
-): RecommendationResult {
+export function buildPlayRecommendations(
+  input: PlayRecommendationInput,
+): PlayRecommendationResult {
+  const textPlays = rankPlays("text", input);
+  const imagePlays = rankPlays("image", input);
+
   return {
-    styles: rankCatalog(defaultStyles, input),
-    modes: rankCatalog(defaultModes, input),
-    gameplay: rankCatalog(defaultGameplay, input),
+    recommendedPlays: [textPlays[0], ...imagePlays.slice(0, 4)],
+    availablePlays: defaultPlays,
   };
-}
-
-export function buildRecommendationsFromAnalysis(input: {
-  vibeTags: string[];
-  tierKey: TierKey;
-}): RecommendationResult {
-  return buildRecommendations({
-    vibeTags: input.vibeTags,
-    tierKey: input.tierKey,
-  });
 }

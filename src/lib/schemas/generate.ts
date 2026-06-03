@@ -1,62 +1,94 @@
 import { z } from "zod";
 
-const selectedKeySchema = z.string().trim().min(1);
+import { playTypes } from "../types";
 
-export const jobStatuses = ["PENDING", "RUNNING", "SUCCEEDED", "FAILED"] as const;
+const ratingValues = [0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5] as const;
 
-export const generateRequestSchema = z.object({
-  recommendationId: z.string().trim().min(1),
-  selectedStyleKey: selectedKeySchema,
-  selectedModeKey: selectedKeySchema,
-  selectedGameplayKey: selectedKeySchema,
+export const playStatuses = ["PENDING", "RUNNING", "SUCCEEDED", "FAILED"] as const;
+
+export const startPlayRequestSchema = z.object({
+  uploadSessionId: z.string().trim().min(1),
+  playType: z.enum(playTypes),
 });
 
-export const generationAssetSchema = z.object({
-  id: z.string().trim().min(1),
+export const playRatingUpdateSchema = z.object({
+  score: z.union(ratingValues.map((value) => z.literal(value)) as [z.ZodLiteral<0.5>, ...z.ZodLiteral<number>[]]),
+});
+
+export const playDescriptorSchema = z.object({
+  playType: z.enum(playTypes),
+  category: z.enum(["text", "image"]),
   title: z.string().trim().min(1),
+  description: z.string().trim().min(1),
+  reason: z.string().trim().min(1),
+});
+
+export const textPlayResultSchema = z.object({
+  kind: z.literal("text"),
+  playType: z.enum(playTypes),
+  title: z.string().trim().min(1),
+  summary: z.string().trim().min(1),
+  highlights: z.tuple([
+    z.string().trim().min(1),
+    z.string().trim().min(1),
+    z.string().trim().min(1),
+  ]),
+  suggestion: z.string().trim().min(1),
+  disclaimer: z.string().trim().min(1),
+});
+
+export const imagePlayResultSchema = z.object({
+  kind: z.literal("image"),
+  playType: z.enum(playTypes),
+  title: z.string().trim().min(1),
+  summary: z.string().trim().min(1),
   imageUrl: z.string().trim().min(1),
   altText: z.string().trim().min(1),
-  panelIndex: z.number().int().nullable(),
 });
 
-export const generationResultSchema = z.object({
-  summary: z.string().trim().min(1),
-  assets: z.array(generationAssetSchema),
-  selection: z.object({
-    styleTitle: z.string().trim().min(1).nullable(),
-    modeTitle: z.string().trim().min(1).nullable(),
-    gameplayTitle: z.string().trim().min(1).nullable(),
-  }),
-});
+export const playResultSchema = z.union([
+  textPlayResultSchema,
+  imagePlayResultSchema,
+]);
 
-export const generationJobProgressSchema = z.object({
+export const playJobProgressSchema = z.object({
   label: z.string().trim().min(1),
   message: z.string().trim().min(1),
   percent: z.number().min(0).max(100),
 });
 
-export const startGenerationResponseSchema = z.object({
+export const startPlayResponseSchema = z.object({
   jobId: z.string().trim().min(1),
-  status: z.enum(jobStatuses),
+  status: z.enum(playStatuses),
   redirectTo: z.string().trim().min(1),
 });
 
-export const generationJobResponseSchema = z.object({
+export const playJobResponseSchema = z.object({
   jobId: z.string().trim().min(1),
-  status: z.enum(jobStatuses),
-  progress: generationJobProgressSchema,
-  result: generationResultSchema.nullable(),
-  errorMessage: z.string().nullable(),
+  uploadSessionId: z.string().trim().min(1),
+  playType: z.enum(playTypes),
+  status: z.enum(playStatuses),
+  progress: playJobProgressSchema,
+  result: playResultSchema.nullable(),
+  rating: z.object({
+    score: z.number().nullable(),
+  }),
   createdAt: z.string().trim().min(1),
   updatedAt: z.string().trim().min(1),
 });
 
-export type GenerateRequest = z.infer<typeof generateRequestSchema>;
-export type GenerationAsset = z.infer<typeof generationAssetSchema>;
-export type GenerationResult = z.infer<typeof generationResultSchema>;
-export type GenerationJobProgress = z.infer<typeof generationJobProgressSchema>;
-export type StartGenerationResponse = z.infer<
-  typeof startGenerationResponseSchema
->;
-export type GenerationJobResponse = z.infer<typeof generationJobResponseSchema>;
-export type GenerationJobStatus = (typeof jobStatuses)[number];
+export const playRatingResponseSchema = z.object({
+  jobId: z.string().trim().min(1),
+  rating: z.object({
+    score: z.number(),
+  }),
+});
+
+export type StartPlayRequest = z.infer<typeof startPlayRequestSchema>;
+export type StartPlayResponse = z.infer<typeof startPlayResponseSchema>;
+export type PlayJobProgress = z.infer<typeof playJobProgressSchema>;
+export type PlayJobResponse = z.infer<typeof playJobResponseSchema>;
+export type PlayJobStatus = (typeof playStatuses)[number];
+export type PlayRatingResponse = z.infer<typeof playRatingResponseSchema>;
+export type TextPlayResult = z.infer<typeof textPlayResultSchema>;
+export type ImagePlayResult = z.infer<typeof imagePlayResultSchema>;
