@@ -60,6 +60,7 @@ async function parseApiResponse<T>(response: Response, fallbackMessage: string) 
   return payload as T;
 }
 
+// The workbench may pass either the original selected avatar or a cropped derivative.
 export async function uploadAvatar(file: File): Promise<UploadResponse> {
   const sourceUrl = await fileToDataUrl(file);
   const response = await fetch("/api/upload", {
