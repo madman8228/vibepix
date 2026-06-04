@@ -25,8 +25,8 @@ function buildAnalysis(input: AvatarInspectionInput): AvatarInspectionResult {
     return {
       compliance: { status: "approved" },
       analysis: {
-        summary: "Bold portrait with dramatic contrast and a high-energy first impression.",
-        tags: ["dramatic", "bold", "heroic"],
+        summary: "这张头像反差感比较强，第一眼会让人觉得有气场，也带一点主角感。",
+        tags: ["戏剧感", "自信", "主角感"],
       },
     };
   }
@@ -35,8 +35,8 @@ function buildAnalysis(input: AvatarInspectionInput): AvatarInspectionResult {
     return {
       compliance: { status: "approved" },
       analysis: {
-        summary: "Bright and upbeat portrait with a friendly social vibe.",
-        tags: ["bright", "friendly", "upbeat"],
+        summary: "这张头像整体偏明亮轻快，给人的感觉亲近、好接近，也有一点轻松的活力。",
+        tags: ["明亮", "亲近", "轻快"],
       },
     };
   }
@@ -44,8 +44,8 @@ function buildAnalysis(input: AvatarInspectionInput): AvatarInspectionResult {
   return {
     compliance: { status: "approved" },
     analysis: {
-      summary: "Warm portrait with calm energy and an approachable first impression.",
-      tags: ["warm", "gentle", "friendly"],
+      summary: "这张头像的气质偏温和安静，第一眼让人觉得舒服，也比较容易产生好感。",
+      tags: ["温和", "安静", "亲近"],
     },
   };
 }

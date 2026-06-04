@@ -8,8 +8,8 @@ import { uploadAvatar } from "../../lib/api";
 type UploadState = "idle" | "uploading" | "error";
 
 const statusCopy: Record<Exclude<UploadState, "error">, string> = {
-  idle: "Upload a JPG or PNG to get a fast avatar read and a recommended play lineup.",
-  uploading: "Checking image compliance and building your avatar summary...",
+  idle: "支持 JPG / PNG。上传后会先做图片合规检查，再生成一段头像小结。",
+  uploading: "正在检查图片并生成头像小结，请稍等片刻。",
 };
 
 export function AvatarUploadForm() {
@@ -45,7 +45,7 @@ export function AvatarUploadForm() {
       setUploadState("error");
       setFileName(null);
       setErrorMessage(
-        error instanceof Error ? error.message : "We could not process this upload.",
+        error instanceof Error ? error.message : "这张图片暂时无法处理。",
       );
       input.value = "";
     } finally {
@@ -53,64 +53,67 @@ export function AvatarUploadForm() {
     }
   }
 
-  const isUploading = uploadState === "uploading";
   const helperText =
     uploadState === "error"
-      ? errorMessage ?? "We could not process this upload."
+      ? errorMessage ?? "这张图片暂时无法处理。"
       : statusCopy[uploadState];
 
   return (
-    <section className="grid gap-6 rounded-[2rem] border border-slate-800 bg-white p-6 text-slate-950 shadow-2xl shadow-slate-950/10 lg:grid-cols-[minmax(0,1fr)_18rem] lg:p-8">
-      <div className="space-y-4">
-        <div className="space-y-2">
-          <p className="text-sm font-semibold uppercase tracking-[0.28em] text-cyan-700">
-            Upload
+    <section className="rounded-[2rem] border border-[var(--line)] bg-[rgba(255,253,249,0.92)] p-6 shadow-[0_20px_70px_rgba(88,67,44,0.08)] backdrop-blur sm:p-8">
+      <div className="space-y-6">
+        <div className="space-y-3">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-[var(--ink-soft)]">
+            上传头像
           </p>
-          <h2 className="text-3xl font-semibold text-slate-950">
-            Start with one avatar.
+          <h2 className="font-display text-3xl text-[var(--ink)] sm:text-4xl">
+            从一张头像开始。
           </h2>
-          <p className="max-w-2xl text-base leading-7 text-slate-600">
-            We will first run a lightweight safety check, then build a short visible summary and route
-            you into a recommended play lobby.
+          <p className="max-w-2xl text-sm leading-7 text-[var(--ink-soft)] sm:text-base">
+            你会先得到一句简短解读，再进入推荐玩法页。整个体验偏轻娱乐、轻陪伴，不会输出高风险结论。
           </p>
         </div>
 
-        <div className="rounded-[1.5rem] border border-dashed border-slate-300 bg-slate-50 p-5">
-          <label htmlFor="avatar-upload" className="block text-sm font-semibold text-slate-900">
-            Avatar upload
+        <div className="rounded-[1.6rem] border border-[var(--line)] bg-white/80 p-5">
+          <label
+            htmlFor="avatar-upload"
+            className="text-sm font-semibold text-[var(--ink)]"
+          >
+            上传头像
           </label>
           <input
             id="avatar-upload"
             name="avatar-upload"
             type="file"
             accept="image/*"
-            className="mt-3 block w-full cursor-pointer rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-700 file:mr-4 file:rounded-full file:border-0 file:bg-slate-950 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white"
-            disabled={isUploading}
+            aria-label="Avatar upload"
+            className="mt-4 block w-full cursor-pointer rounded-[1rem] border border-[var(--line)] bg-[var(--paper-strong)] px-4 py-3 text-sm text-[var(--ink-soft)] file:mr-4 file:rounded-full file:border-0 file:bg-[var(--ink)] file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white"
+            disabled={uploadState === "uploading"}
             onChange={handleFileChange}
           />
-          <p className={`mt-3 text-sm ${uploadState === "error" ? "text-rose-600" : "text-slate-600"}`}>
+          <p
+            className={`mt-4 text-sm leading-6 ${
+              uploadState === "error" ? "text-[#b2554d]" : "text-[var(--ink-soft)]"
+            }`}
+          >
             {helperText}
           </p>
           {fileName ? (
-            <p className="mt-2 text-sm font-medium text-slate-900">Selected file: {fileName}</p>
+            <p className="mt-2 text-sm text-[var(--ink)]">已选择：{fileName}</p>
           ) : null}
         </div>
-      </div>
 
-      <aside className="rounded-[1.5rem] bg-slate-950 p-5 text-slate-50">
-        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-amber-300">What happens next</p>
-        <ul className="mt-4 space-y-3 text-sm text-slate-300">
-          <li>
-            <span className="font-semibold text-white">1.</span> Check the image for obvious compliance issues.
-          </li>
-          <li>
-            <span className="font-semibold text-white">2.</span> Generate a short avatar analysis summary.
-          </li>
-          <li>
-            <span className="font-semibold text-white">3.</span> Send you into a play lobby with recommendations.
-          </li>
-        </ul>
-      </aside>
+        <div className="flex flex-wrap gap-2 text-xs text-[var(--ink-soft)]">
+          <span className="rounded-full border border-[var(--line)] bg-white/70 px-3 py-1.5">
+            匿名体验
+          </span>
+          <span className="rounded-full border border-[var(--line)] bg-white/70 px-3 py-1.5">
+            一次只返回一个结果
+          </span>
+          <span className="rounded-full border border-[var(--line)] bg-white/70 px-3 py-1.5">
+            可选评分
+          </span>
+        </div>
+      </div>
     </section>
   );
 }

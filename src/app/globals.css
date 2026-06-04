@@ -3,7 +3,24 @@
 
 :root {
   color-scheme: light;
-  font-family: Arial, Helvetica, sans-serif;
+  font-family:
+    Inter,
+    "PingFang SC",
+    "Hiragino Sans GB",
+    "Microsoft YaHei",
+    Arial,
+    sans-serif;
+  --paper: #eef3fb;
+  --paper-strong: #f7faff;
+  --panel: rgba(255, 255, 255, 0.88);
+  --panel-strong: rgba(245, 248, 255, 0.94);
+  --chip: rgba(95, 118, 255, 0.08);
+  --line: rgba(15, 32, 58, 0.09);
+  --line-strong: rgba(95, 118, 255, 0.22);
+  --ink: #081324;
+  --ink-soft: #61738f;
+  --accent: #5f76ff;
+  --accent-2: #82ffb9;
 }
 
 * {
@@ -18,8 +35,11 @@ body {
 
 body {
   min-height: 100vh;
-  background: #f8fafc;
-  color: #0f172a;
+  background:
+    radial-gradient(circle at top, rgba(95, 118, 255, 0.12), transparent 34%),
+    radial-gradient(circle at 85% 18%, rgba(130, 255, 185, 0.1), transparent 22%),
+    linear-gradient(180deg, #eef3fb 0%, #f8fbff 100%);
+  color: var(--ink);
 }
 
 a {
@@ -27,28 +47,31 @@ a {
   text-decoration: none;
 }
 
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
 .workbench-shell {
-  width: min(100%, 960px);
+  width: min(100%, 1180px);
   margin: 0 auto;
-  padding: 24px 16px 48px;
+  padding: 20px 14px 40px;
   display: grid;
   gap: 16px;
 }
 
-.workbench-head {
-  display: grid;
-  gap: 8px;
-}
-
-.workbench-label {
-  font-size: 11px;
-  letter-spacing: 0.28em;
-  text-transform: uppercase;
-}
-
 @media (min-width: 768px) {
   .workbench-shell {
-    padding: 40px 24px 64px;
-    gap: 20px;
+    padding: 30px 24px 56px;
+    gap: 18px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .workbench-shell {
+    padding: 36px 28px 72px;
+    gap: 22px;
   }
 }

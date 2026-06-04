@@ -27,12 +27,14 @@ export function RatingPanel({
   }
 
   return (
-    <section className="rounded-[2rem] border border-white/10 bg-white/5 p-6">
+    <section className="rounded-[1.8rem] border border-[var(--line)] bg-white/78 p-5">
       <div className="space-y-2">
-        <p className="text-sm font-semibold uppercase tracking-[0.3em] text-amber-300">Rate this result</p>
-        <h2 className="text-2xl font-semibold text-white">Optional half-star feedback</h2>
-        <p className="text-sm text-slate-300">
-          Your rating helps us compare prompts and play quality without blocking your next action.
+        <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-[var(--ink-soft)]">
+          可选评分
+        </p>
+        <h2 className="font-display text-3xl text-[var(--ink)]">这次结果你喜欢吗？</h2>
+        <p className="text-sm leading-6 text-[var(--ink-soft)]">
+          不想评分也没关系，你可以直接回去继续玩别的玩法。
         </p>
       </div>
 
@@ -47,23 +49,22 @@ export function RatingPanel({
               type="button"
               disabled={pendingScore !== null}
               onClick={() => void handleRate(score)}
-              className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
+              className={`rounded-full border px-4 py-2 text-sm transition ${
                 isSelected
-                  ? "border-amber-300 bg-amber-300/15 text-amber-100"
-                  : "border-white/10 bg-slate-950/40 text-slate-200 hover:border-amber-300/30 hover:bg-white/10"
-              } ${pendingScore !== null ? "cursor-not-allowed opacity-70" : ""}`}
+                  ? "border-[var(--ink)] bg-[var(--ink)] text-white"
+                  : "border-[var(--line)] bg-white text-[var(--ink)] hover:bg-[var(--paper-soft)]"
+              } ${pendingScore !== null ? "cursor-not-allowed opacity-60" : ""}`}
               aria-label={`${score} stars`}
             >
-              {isPending ? "Saving..." : `${score}★`}
+              {isPending ? "保存中" : `${score}★`}
             </button>
           );
         })}
       </div>
 
-      <p className="mt-4 text-sm text-slate-400">
-        Current rating: <span className="font-semibold text-white">{value ?? "Not rated yet"}</span>
-      </p>
-      {thanksVisible ? <p className="mt-2 text-sm text-emerald-300">Thanks for rating.</p> : null}
+      {thanksVisible ? (
+        <p className="mt-4 text-sm text-[var(--ink-soft)]">谢谢反馈。</p>
+      ) : null}
     </section>
   );
 }

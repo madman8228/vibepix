@@ -9,6 +9,8 @@ export const playStatuses = ["PENDING", "RUNNING", "SUCCEEDED", "FAILED"] as con
 export const startPlayRequestSchema = z.object({
   uploadSessionId: z.string().trim().min(1),
   playType: z.enum(playTypes),
+  variantKey: z.string().trim().min(1).optional(),
+  variantLabel: z.string().trim().min(1).optional(),
 });
 
 export const playRatingUpdateSchema = z.object({

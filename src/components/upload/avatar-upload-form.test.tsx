@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import "@testing-library/jest-dom/vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { uploadAvatar } from "../../lib/api";
@@ -21,6 +21,7 @@ vi.mock("../../lib/api", () => ({
 
 describe("AvatarUploadForm", () => {
   afterEach(() => {
+    cleanup();
     vi.clearAllMocks();
   });
 

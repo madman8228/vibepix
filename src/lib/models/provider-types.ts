@@ -25,6 +25,8 @@ export interface AvatarIntelligenceProvider {
   executePlay(input: {
     uploadId: string;
     playType: PlayType;
+    variantKey?: string;
+    variantLabel?: string;
     analysis: AvatarAnalysis;
     now: Date;
   }): Promise<PlayResult>;

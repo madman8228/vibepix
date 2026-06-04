@@ -18,7 +18,7 @@ import type {
 
 const MOCK_JOB_READY_DELAY_MS = 900;
 const TEXT_DISCLAIMER =
-  "For entertainment only. This result is a light interpretation, not advice or diagnosis.";
+  "仅供轻娱乐体验参考，不作为建议、诊断或任何重要决策依据。";
 
 function hashValue(input: string) {
   let value = 0;
@@ -72,48 +72,50 @@ function buildTextResult({
   playType,
   analysis,
   now,
+  variantLabel,
 }: {
   uploadId: string;
   playType: PlayType;
   analysis: AvatarAnalysis;
   now: Date;
+  variantLabel?: string;
 }): TextPlayResult {
-  const primaryTag = analysis.tags[0] ?? "warm";
-  const secondaryTag = analysis.tags[1] ?? "friendly";
+  const primaryTag = analysis.tags[0] ?? "温和";
+  const secondaryTag = analysis.tags[1] ?? "亲近";
   const dailySeed = playType === "daily_fortune" ? buildFortuneVariant(uploadId, now) : uploadId;
   const variant = hashValue(`${dailySeed}:${playType}:${playPrompts[playType]}`) % 3;
 
   if (playType === "daily_fortune") {
     const fortuneSets = [
       {
-        title: "Today's Fortune",
-        summary: `Your avatar reads as ${primaryTag} and ${secondaryTag} today, so the energy leans toward easy momentum and pleasant timing.`,
+        title: "今日运势",
+        summary: `今天这张头像给人的感觉偏${primaryTag}，也带一点${secondaryTag}的尾调，整体会更轻松顺一点${variantLabel ? `，也更适合「${variantLabel}」这类氛围` : ""}。`,
         highlights: [
-          "Best when you lean into small confident steps.",
-          "Social timing looks smoother than expected.",
-          "A bright detail or compliment may lift your mood today.",
+          "适合先从一件小事开始，状态会慢慢顺起来。",
+          "今天的人际互动，节奏会比你预想得更轻松。",
+          "一个被看见的小细节，可能会让你心情变好。",
         ] as [string, string, string],
-        suggestion: "Keep the day light and say yes to one easy win.",
+        suggestion: "别把今天安排得太满，先接住一个轻松的小好运。",
       },
       {
-        title: "Today's Fortune",
-        summary: `Your current vibe feels ${primaryTag} with a steady ${secondaryTag} undertone, which points to a calm, low-drama day.`,
+        title: "今日运势",
+        summary: `这张头像今天透出的感觉更偏${primaryTag}和${secondaryTag}，说明今天适合走稳定、舒服的节奏${variantLabel ? `，也更适合「${variantLabel}」的打开方式` : ""}。`,
         highlights: [
-          "Good energy for resetting your pace.",
-          "People are more likely to read you as approachable.",
-          "A quiet choice may turn out better than a rushed one.",
+          "适合放慢一点，把自己的状态调回来。",
+          "别人会更容易觉得你亲近、好沟通。",
+          "今天安静一点的选择，反而可能更合适。",
         ] as [string, string, string],
-        suggestion: "Protect your attention and enjoy the most comfortable option.",
+        suggestion: "尽量把注意力留给真正重要的事，舒服一点会更顺。",
       },
       {
-        title: "Today's Fortune",
-        summary: `Your avatar gives off a ${primaryTag} first impression today, with ${secondaryTag} energy that makes the day feel gently lucky.`,
+        title: "今日运势",
+        summary: `今天这张头像更像一种${primaryTag}的开场，再带一点${secondaryTag}的气氛，整体是轻轻发亮的一天${variantLabel ? `，很适合放大成「${variantLabel}」的感觉` : ""}。`,
         highlights: [
-          "Creative or playful decisions are favored.",
-          "You may notice quick positive feedback from others.",
-          "A familiar routine can still bring a fresh spark.",
+          "适合做一点轻松、带玩心的决定。",
+          "你可能会收到比平时更快的正向反馈。",
+          "熟悉的日常里，也会冒出一点新鲜感。",
         ] as [string, string, string],
-        suggestion: "Choose the most fun version of your next small task.",
+        suggestion: "下一件小事，尽量选那个你更想做的版本。",
       },
     ];
 
@@ -131,24 +133,24 @@ function buildTextResult({
 
   const definitions: Record<Exclude<PlayType, "style_swap" | "new_avatar" | "poster" | "mood_mode" | "story_mode" | "daily_fortune">, { title: string; summary: string; highlights: [string, string, string]; suggestion: string; }> = {
     personality_read: {
-      title: "Personality Read",
-      summary: `Your avatar comes across as ${primaryTag}, ${secondaryTag}, and easy to warm up to. The overall feel is light, steady, and quietly expressive.`,
+      title: "性格解读",
+      summary: `这张头像会让人先感受到你的${primaryTag}，再慢慢注意到一点${secondaryTag}。整体气质不张扬，但有自己的温度${variantLabel ? `，也很适合「${variantLabel}」这种表达` : ""}。`,
       highlights: [
-        `People may first read you as ${primaryTag}.`,
-        `There is a ${secondaryTag} quality that softens the whole impression.`,
-        "The vibe suggests calm confidence more than loud attention-seeking.",
+        `第一眼最容易被读到的，是你身上的${primaryTag}感。`,
+        `${secondaryTag}让这张头像看起来更柔和，也更容易被喜欢。`,
+        "整体不是那种用力吸引注意的类型，而是慢慢留下印象。",
       ],
-      suggestion: "Lean into the most natural version of yourself rather than over-styling your image.",
+      suggestion: "这类气质最适合自然一点，不需要把自己包装得太满。",
     },
     social_aura: {
-      title: "Social Aura",
-      summary: `This avatar gives off a ${primaryTag} social aura with ${secondaryTag} energy underneath, making the vibe feel open and easy to approach.`,
+      title: "社交气场",
+      summary: `这张头像在社交场景里会先给出一种${primaryTag}的感觉，底下又带一点${secondaryTag}，所以整体比较容易靠近${variantLabel ? `，尤其适合「${variantLabel}」这一类呈现` : ""}。`,
       highlights: [
-        "Your first impression feels softer than intimidating.",
-        "The image reads best in casual, warm social settings.",
-        "A small confident gesture is likely to stand out well.",
+        "第一印象偏柔和，不会让人有距离感。",
+        "放在轻松、温暖一点的场景里会更讨喜。",
+        "一个小小的自信动作，就足够让你被记住。",
       ],
-      suggestion: "Use this aura when you want to feel friendly, natural, and lightly magnetic.",
+      suggestion: "如果你想显得自然、亲切又不无聊，这种气场就很合适。",
     },
   };
 
@@ -168,34 +170,38 @@ function buildImageResult({
   uploadId,
   playType,
   analysis,
+  variantLabel,
 }: {
   uploadId: string;
   playType: PlayType;
   analysis: AvatarAnalysis;
+  variantLabel?: string;
 }): ImagePlayResult {
   const titles: Record<PlayType, string> = {
-    personality_read: "Personality Read",
-    daily_fortune: "Today's Fortune",
-    social_aura: "Social Aura",
-    style_swap: "Style Swap Avatar",
-    new_avatar: "New Avatar Concept",
-    poster: "Poster Composition",
-    mood_mode: "Mood Mode Frame",
-    story_mode: "Story Mode Frame",
+    personality_read: "性格解读",
+    daily_fortune: "今日运势",
+    social_aura: "社交气场",
+    style_swap: "换风格头像",
+    new_avatar: "新头像生成",
+    poster: "海报生成",
+    mood_mode: "心情模式",
+    story_mode: "剧情模式",
   };
   const subtitles: Record<PlayType, string> = {
     personality_read: analysis.summary,
     daily_fortune: analysis.summary,
     social_aura: analysis.summary,
-    style_swap: "Identity intact, visual mood refreshed.",
-    new_avatar: "A more transformed avatar interpretation.",
-    poster: "Display-first composition with stronger presentation energy.",
-    mood_mode: "Emotion and atmosphere pushed to the front.",
-    story_mode: "A single frame that hints at a larger scene.",
+    style_swap: "保留原来的辨识度，换一种更新鲜的视觉气质。",
+    new_avatar: "以原头像为灵感，生成一个更有变化的新版本。",
+    poster: "让画面更有展示感，也更像一张完整海报。",
+    mood_mode: "把情绪和氛围感拉到画面最前面。",
+    story_mode: "像一张故事截图，留一点想象空间。",
   };
-  const accentHue = hashValue(`${uploadId}:${playType}:${analysis.tags.join(",")}`);
+  const accentHue = hashValue(`${uploadId}:${playType}:${analysis.tags.join(",")}:${variantLabel ?? ""}`);
   const title = titles[playType];
-  const summary = subtitles[playType];
+  const summary = variantLabel
+    ? `${subtitles[playType]} 这次会更偏「${variantLabel}」的画面氛围。`
+    : subtitles[playType];
 
   return {
     kind: "image",
@@ -203,7 +209,7 @@ function buildImageResult({
     title,
     summary,
     imageUrl: buildSvgDataUrl({ title, subtitle: summary, accentHue }),
-    altText: `${title} generated from an avatar with ${analysis.tags.join(", ")} energy.`,
+    altText: `根据头像的${analysis.tags.join("、")}气质生成的${title}结果。`,
   };
 }
 
@@ -212,17 +218,19 @@ export function buildPlayResult({
   playType,
   analysis,
   now,
+  variantLabel,
 }: {
   uploadId: string;
   playType: PlayType;
   analysis: AvatarAnalysis;
   now: Date;
+  variantLabel?: string;
 }): PlayResult {
   if (playType === "personality_read" || playType === "daily_fortune" || playType === "social_aura") {
-    return buildTextResult({ uploadId, playType, analysis, now });
+    return buildTextResult({ uploadId, playType, analysis, now, variantLabel });
   }
 
-  return buildImageResult({ uploadId, playType, analysis });
+  return buildImageResult({ uploadId, playType, analysis, variantLabel });
 }
 
 function parseStoredStringArray(value: string | null): string[] {
@@ -244,7 +252,7 @@ function buildProgress(status: PlayJobStatus, createdAt: Date) {
   if (status === "SUCCEEDED") {
     return {
       label: "Ready",
-      message: "Your play result is ready to explore.",
+      message: "结果已经准备好了。",
       percent: 100,
     };
   }
@@ -252,7 +260,7 @@ function buildProgress(status: PlayJobStatus, createdAt: Date) {
   if (status === "FAILED") {
     return {
       label: "Stopped",
-      message: "This play could not be completed.",
+      message: "这个玩法暂时没能完成。",
       percent: 100,
     };
   }
@@ -265,7 +273,7 @@ function buildProgress(status: PlayJobStatus, createdAt: Date) {
   if (ratio < 0.35) {
     return {
       label: "Preparing",
-      message: "Reading your avatar and loading the selected play prompt.",
+      message: "正在读取头像信息并准备这个玩法。",
       percent: 32,
     };
   }
@@ -273,14 +281,14 @@ function buildProgress(status: PlayJobStatus, createdAt: Date) {
   if (ratio < 0.72) {
     return {
       label: "Generating",
-      message: "Building a single result for the chosen play.",
+      message: "正在生成这次唯一的结果。",
       percent: 71,
     };
   }
 
   return {
     label: "Finalizing",
-    message: "Packaging the result card and rating state.",
+    message: "正在整理结果展示和评分状态。",
     percent: 92,
   };
 }
@@ -308,9 +316,13 @@ async function resolveDefaultTierId() {
 export async function createPlayJob({
   uploadSessionId,
   playType,
+  variantKey,
+  variantLabel,
 }: {
   uploadSessionId: string;
   playType: PlayType;
+  variantKey?: string;
+  variantLabel?: string;
 }): Promise<StartPlayResponse> {
   const upload = await db.upload.findUnique({
     where: { id: uploadSessionId },
@@ -336,13 +348,15 @@ export async function createPlayJob({
   const analysis: AvatarAnalysis = {
     summary:
       upload.analysisSummary ??
-      "Warm portrait with calm energy and an approachable first impression.",
+      "这张头像给人的感觉温和、安静，也比较容易让人产生好感。",
     tags: parseStoredStringArray(upload.vibeTags),
   };
   const now = new Date();
   const result = await getAvatarIntelligenceProvider().executePlay({
     uploadId: upload.id,
     playType,
+    variantKey,
+    variantLabel,
     analysis,
     now,
   });

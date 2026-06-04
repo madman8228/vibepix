@@ -26,7 +26,7 @@ export default function GenerateResultPage() {
     async function poll() {
       if (!jobId) {
         setPageState("error");
-        setErrorMessage("Play job missing. Start again from the play lobby.");
+        setErrorMessage("缺少结果信息，请回到前一步重试。");
         return;
       }
 
@@ -52,7 +52,7 @@ export default function GenerateResultPage() {
         }
 
         setPageState("error");
-        setErrorMessage(error instanceof Error ? error.message : "We could not load this play result right now.");
+        setErrorMessage(error instanceof Error ? error.message : "暂时无法读取这个结果。");
       }
     }
 
@@ -80,13 +80,20 @@ export default function GenerateResultPage() {
 
   if (pageState === "error") {
     return (
-      <main className="min-h-screen bg-slate-950 px-6 py-12 text-slate-50">
-        <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 rounded-[2rem] border border-rose-400/30 bg-slate-900/80 p-8 shadow-2xl shadow-slate-950/40">
-          <p className="text-sm font-semibold uppercase tracking-[0.3em] text-rose-300">Play result</p>
-          <h1 className="text-3xl font-semibold text-white">We could not load this result.</h1>
-          <p className="text-base text-slate-300">{errorMessage ?? "Please go back to the play lobby and try again."}</p>
-          <Link href="/" className="inline-flex w-fit rounded-full bg-rose-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-rose-200">
-            Back to upload
+      <main className="min-h-screen px-5 py-8 md:px-8 md:py-12">
+        <div className="mx-auto w-full max-w-3xl rounded-[2rem] border border-[rgba(178,85,77,0.2)] bg-[rgba(255,253,249,0.94)] p-8">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-[#b2554d]">
+            这次结果
+          </p>
+          <h1 className="font-display mt-4 text-4xl text-[var(--ink)]">暂时没能读到结果</h1>
+          <p className="mt-4 text-base leading-7 text-[var(--ink-soft)]">
+            {errorMessage ?? "请回到玩法页再试一次。"}
+          </p>
+          <Link
+            href="/"
+            className="mt-6 inline-flex rounded-full bg-[var(--ink)] px-5 py-3 text-sm font-semibold text-white"
+          >
+            回到首页
           </Link>
         </div>
       </main>
@@ -94,20 +101,26 @@ export default function GenerateResultPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-50">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 py-10 lg:px-10 lg:py-14">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-          <div className="space-y-3">
-            <p className="text-sm font-semibold uppercase tracking-[0.3em] text-cyan-300">Play result</p>
-            <h1 className="text-4xl font-semibold text-white">One result at a time</h1>
-            <p className="max-w-2xl text-base text-slate-300">Each selected play returns one focused text card or one generated image, plus optional half-star feedback.</p>
+    <main className="min-h-screen px-5 py-8 md:px-8 md:py-12">
+      <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
+        <div className="rounded-[1.5rem] border border-[var(--line)] bg-[var(--panel)] px-4 py-4 text-sm leading-6 text-[var(--ink-soft)]">
+          这是兼容结果页。正式体验已经回到首页，你也可以直接在那里上传头像、选玩法并查看结果。
+        </div>
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-[var(--ink-soft)]">
+              这次结果
+            </p>
+            <h1 className="font-display mt-3 text-4xl text-[var(--ink)] sm:text-5xl">
+              一次，只看一个结果
+            </h1>
           </div>
           {job ? (
             <Link
-              href={`/recommend?uploadSessionId=${encodeURIComponent(job.uploadSessionId)}`}
-              className="inline-flex w-fit rounded-full border border-white/15 px-4 py-2 text-sm font-semibold text-white transition hover:border-cyan-300/40 hover:bg-cyan-300/10"
+              href="/"
+              className="inline-flex rounded-full border border-[var(--line)] bg-white/70 px-4 py-2 text-sm text-[var(--ink)] transition hover:bg-[var(--paper-soft)]"
             >
-              Back to play lobby
+              回到首页
             </Link>
           ) : null}
         </div>
@@ -124,8 +137,8 @@ export default function GenerateResultPage() {
           <JobProgress
             status="RUNNING"
             progress={{
-              label: "Preparing",
-              message: "Loading your selected play.",
+              label: "准备中",
+              message: "正在载入这次结果。",
               percent: 10,
             }}
           />
