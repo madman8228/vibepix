@@ -20,12 +20,26 @@ function isJsdomCanvasEnvironment() {
   );
 }
 
+function isNativeJsdomCanvasMethod<T extends (...args: never[]) => unknown>(
+  actualMethod: T | undefined,
+  prototypeMethod: T | undefined,
+) {
+  return (
+    isJsdomCanvasEnvironment() &&
+    typeof actualMethod === "function" &&
+    typeof prototypeMethod === "function" &&
+    actualMethod === prototypeMethod
+  );
+}
+
 function clampCropToCanvas(
   sourceCanvas: HTMLCanvasElement,
   crop: CropRect,
 ): CropRect {
-  const x = Math.max(0, Math.min(crop.x, sourceCanvas.width));
-  const y = Math.max(0, Math.min(crop.y, sourceCanvas.height));
+  const maxX = Math.max(0, sourceCanvas.width - 1);
+  const maxY = Math.max(0, sourceCanvas.height - 1);
+  const x = Math.max(0, Math.min(crop.x, maxX));
+  const y = Math.max(0, Math.min(crop.y, maxY));
   const width = Math.max(1, Math.min(crop.width, sourceCanvas.width - x));
   const height = Math.max(1, Math.min(crop.height, sourceCanvas.height - y));
 
@@ -36,7 +50,12 @@ function canvasToBlob(
   canvas: HTMLCanvasElement,
   mimeType: string,
 ): Blob {
-  if (isJsdomCanvasEnvironment()) {
+  if (
+    isNativeJsdomCanvasMethod(
+      canvas.toDataURL,
+      HTMLCanvasElement.prototype.toDataURL,
+    )
+  ) {
     return new Blob([], { type: mimeType });
   }
 
@@ -57,7 +76,12 @@ function canvasToBlob(
 }
 
 function getCanvasContext2d(canvas: HTMLCanvasElement) {
-  if (isJsdomCanvasEnvironment()) {
+  if (
+    isNativeJsdomCanvasMethod(
+      canvas.getContext,
+      HTMLCanvasElement.prototype.getContext,
+    )
+  ) {
     return null;
   }
 
